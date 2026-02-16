@@ -1,0 +1,6 @@
+@import 'chat.css';
+@import 'auth-shared.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

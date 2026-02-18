@@ -1382,6 +1382,7 @@ PHASE,
     private function getHistory(CaseModel $case)
     {
         return Conversation::where('case_id', $case->id)
+            ->whereNull('metadata->task_id')
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get()

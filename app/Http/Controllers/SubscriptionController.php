@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Inertia\Response;
 use Laravel\Cashier\Exceptions\IncompletePayment;
 
 class SubscriptionController extends Controller
@@ -15,6 +17,11 @@ class SubscriptionController extends Controller
         'pro'      => 500,
         'business' => 999999,
     ];
+
+    public function plans(): Response
+    {
+        return Inertia::render('Subscription/Plans');
+    }
 
     /**
      * Redirect til Stripe Checkout for at oprette eller skifte abonnement.

@@ -322,6 +322,16 @@ const groupedCases = computed(() => {
                         Admin panel
                     </Link>
                     <Link
+                        v-if="$page.props.auth.user.subscription_plan === 'free' || !$page.props.auth.user.subscription_plan"
+                        :href="route('subscription.plans')"
+                        class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-purple-600 hover:bg-purple-50 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                        </svg>
+                        Opgrader til Pro
+                    </Link>
+                    <Link
                         :href="route('logout')"
                         method="post"
                         as="button"

@@ -72,6 +72,7 @@ Route::middleware('auth')->group(function () {
 
     // Stripe subscription — moderate rate limiting
     Route::middleware('throttle:10,1')->group(function () {
+        Route::get('/subscription/plans', [SubscriptionController::class, 'plans'])->name('subscription.plans');
         Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
         Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
         Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');

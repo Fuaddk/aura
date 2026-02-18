@@ -362,10 +362,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                                     <div v-if="isPaidPlan" class="st-muted">Månedlig · fornyes automatisk den {{ nextResetDate }}.</div>
                                     <div v-else class="st-muted">Opgrader for at få flere AI-beskeder.</div>
                                 </div>
-                                <button v-if="!isPaidPlan" @click="startCheckout('pro')" class="st-btn" :disabled="checkoutForm.processing">
-                                    <span v-if="checkoutForm.processing"><span class="st-spin st-spin-dark"></span>Omdirigerer…</span>
-                                    <span v-else>Opgrader</span>
-                                </button>
+                                <Link v-if="!isPaidPlan" :href="route('subscription.plans')" class="st-btn">Opgrader</Link>
                                 <a v-else :href="route('subscription.portal')" class="st-btn">Juster plan</a>
                             </div>
 

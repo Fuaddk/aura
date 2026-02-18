@@ -22,6 +22,7 @@ class CalendarController extends Controller
 
         $tasks = $user->tasks()
             ->whereNotNull('due_date')
+            ->where('status', '!=', 'completed')
             ->orderBy('due_date', 'asc')
             ->get(['id', 'title', 'due_date', 'priority', 'status', 'task_type']);
 
@@ -39,9 +40,10 @@ class CalendarController extends Controller
     {
         $user = auth()->user();
 
-        // Get all tasks with due dates
+        // Get all incomplete tasks with due dates
         $tasks = $user->tasks()
             ->whereNotNull('due_date')
+            ->where('status', '!=', 'completed')
             ->orderBy('due_date', 'asc')
             ->get(['id', 'title', 'due_date', 'priority', 'description', 'status']);
 

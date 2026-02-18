@@ -15,8 +15,11 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        <!-- Prevent bfcache: force full reload when browser restores page from back/forward cache -->
-        <script>window.addEventListener('pageshow',function(e){if(e.persisted)window.location.reload();});</script>
+        <!-- Prevent bfcache: back-button after logout must hit the server, not a cached page -->
+        <script>
+            window.addEventListener('unload', function(){});
+            window.addEventListener('pageshow', function(e){ if(e.persisted) window.location.replace(window.location.href); });
+        </script>
 
         <!-- Scripts -->
         @routes

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
 
@@ -9,6 +9,14 @@ const notifOpen     = ref(false);
 const notifRef      = ref(null);
 const notifications = ref([...$page.props.notifications ?? []]);
 const unreadCount   = ref($page.props.unreadNotificationCount ?? 0);
+
+// Sync with server props on every Inertia navigation (incl. back/forward)
+watch(() => $page.props.unreadNotificationCount, (val) => {
+    unreadCount.value = val ?? 0;
+});
+watch(() => $page.props.notifications, (val) => {
+    if (val) notifications.value = [...val];
+});
 
 const notifIcons = {
     new_tasks:             '✅',

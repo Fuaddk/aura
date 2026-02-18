@@ -8,6 +8,12 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Force full reload when browser restores page from bfcache (back/forward).
+// This ensures logged-out users cannot see protected pages via the back button.
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) window.location.reload();
+});
+
 // Page transition: fade-in main content on each navigation
 router.on('navigate', () => {
     const el = document.getElementById('app');

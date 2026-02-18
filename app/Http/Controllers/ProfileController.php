@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\CaseModel;
+use App\Models\SubscriptionPlan;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,15 +35,16 @@ class ProfileController extends Controller
             ->get(['id', 'title', 'situation_summary', 'status', 'created_at']);
 
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail'  => $user instanceof MustVerifyEmail,
-            'status'           => session('status'),
-            'twoFactor'        => session('twoFactor'),
-            'usagePercent'     => $usagePercent,
-            'messagesUsed'     => $messagesUsed,
-            'messagesLimit'    => $messagesLimit,
-            'casesCount'       => $cases->count(),
-            'tasksCount'       => $user->tasks()->count(),
-            'cases'            => $cases,
+            'mustVerifyEmail'   => $user instanceof MustVerifyEmail,
+            'status'            => session('status'),
+            'twoFactor'         => session('twoFactor'),
+            'usagePercent'      => $usagePercent,
+            'messagesUsed'      => $messagesUsed,
+            'messagesLimit'     => $messagesLimit,
+            'casesCount'        => $cases->count(),
+            'tasksCount'        => $user->tasks()->count(),
+            'cases'             => $cases,
+            'subscriptionPlans' => SubscriptionPlan::orderBy('sort_order')->where('is_active', true)->get(),
         ]);
     }
 

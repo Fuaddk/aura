@@ -13,11 +13,12 @@ use Laravel\Cashier\Exceptions\IncompletePayment;
 
 class SubscriptionController extends Controller
 {
-    private array $limits = [
-        'free'     => 50,
-        'pro'      => 500,
-        'business' => 999999,
-    ];
+    private function limitForPlan(string $slug): int
+    {
+        $plan = SubscriptionPlan::where('slug', $slug)->first();
+        if (!$plan) return 50;
+        return $plan->messages_limit === 0 ? 999999 : $plan->messages_limit;
+    }
 
     public function plans(): Response
     {
@@ -93,10 +94,10 @@ class SubscriptionController extends Controller
                 $session = \Laravel\Cashier\Cashier::stripe()->checkout->sessions->retrieve($sessionId);
                 $plan    = $session->metadata->plan ?? null;
 
-                if ($plan && isset($this->limits[$plan])) {
+                if ($plan) {
                     $user->update([
                         'subscription_plan' => $plan,
-                        'ai_messages_limit' => $this->limits[$plan],
+                        'ai_messages_limit' => $this->limitForPlan($plan),
                     ]);
 
                     \App\Services\NotificationService::notifySubscriptionUpgraded($user, $plan);
@@ -133,7 +134,7 @@ class SubscriptionController extends Controller
 
         $user->update([
             'subscription_plan' => 'free',
-            'ai_messages_limit' => $this->limits['free'],
+            'ai_messages_limit' => $this->limitForPlan('free'),
         ]);
 
         return redirect()->route('profile.edit', ['section' => 'subscription'])

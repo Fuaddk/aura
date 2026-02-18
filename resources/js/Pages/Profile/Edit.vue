@@ -5,15 +5,16 @@ import ChatLayout from '@/Layouts/ChatLayout.vue';
 import ChatSidebar from '@/Components/ChatSidebar.vue';
 
 const props = defineProps({
-    mustVerifyEmail: Boolean,
-    status:          String,
-    twoFactor:       Object,
-    usagePercent:    Number,
-    messagesUsed:    Number,
-    messagesLimit:   Number,
-    casesCount:      Number,
-    tasksCount:      Number,
-    cases:           { type: Array, default: () => [] },
+    mustVerifyEmail:   Boolean,
+    status:            String,
+    twoFactor:         Object,
+    usagePercent:      Number,
+    messagesUsed:      Number,
+    messagesLimit:     Number,
+    casesCount:        Number,
+    tasksCount:        Number,
+    cases:             { type: Array, default: () => [] },
+    subscriptionPlans: { type: Array, default: () => [] },
 });
 
 const page       = usePage();
@@ -54,23 +55,16 @@ const checkoutForm   = useForm({ plan: '' });
 const cancelForm     = useForm({});
 const isPaidPlan     = computed(() => currentPlan.value !== 'free');
 
-const plans = [
-    {
-        id: 'free', name: 'Gratis', price: '0', messages: '50 AI-beskeder/md.',
-        features: ['50 AI-beskeder om måneden', '1 aktiv sag', 'Grundlæggende opgavestyring'],
-        color: '#9ca3af',
-    },
-    {
-        id: 'pro', name: 'Pro', price: '99', messages: '500 AI-beskeder/md.',
-        features: ['500 AI-beskeder om måneden', 'Ubegrænset sager', 'Avancerede opgaver', 'Dokumentupload'],
-        color: '#7E75CE', popular: true,
-    },
-    {
-        id: 'business', name: 'Business', price: '299', messages: 'Ubegrænset',
-        features: ['Ubegrænset AI-beskeder', 'Ubegrænset sager', 'Prioritetssupport', 'API-adgang'],
-        color: '#5BC4E8',
-    },
-];
+const plans = computed(() => props.subscriptionPlans.map(sp => ({
+    id:       sp.slug,
+    name:     sp.name,
+    price:    String(sp.price),
+    messages: sp.messages_limit === 0 ? 'Ubegrænset' : `${sp.messages_limit} AI-beskeder/md.`,
+    features: Array.isArray(sp.features) ? sp.features : [],
+    color:    sp.color || '#9ca3af',
+    popular:  sp.is_popular,
+    hasStripe: !!sp.stripe_price_id,
+})));
 
 const startCheckout = (planId) => {
     if (planId === currentPlan.value || checkoutForm.processing) return;
@@ -115,7 +109,7 @@ const usageColor = computed(() => {
     return '#374151';
 });
 
-const planLabel = (id) => plans.find(p => p.id === id)?.name ?? id;
+const planLabel = (id) => plans.value.find(p => p.id === id)?.name ?? id;
 
 /* ── Two-Factor Authentication ──────────────────────────── */
 const twoFactorEnabled = computed(() => !!authUser.value.two_factor_confirmed_at);

@@ -55,20 +55,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Two-Factor Authentication management
-    Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
-    Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
-    Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->name('two-factor.disable');
-    Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
+    // Sensitive profile operations — strict rate limiting
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    });
 
-    // Stripe subscription
-    Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
-    Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
-    Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
-    Route::get('/subscription/portal', [SubscriptionController::class, 'portal'])->name('subscription.portal');
+    // Two-Factor Authentication — strict rate limiting
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
+        Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+        Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->name('two-factor.disable');
+        Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
+    });
+
+    // Stripe subscription — moderate rate limiting
+    Route::middleware('throttle:10,1')->group(function () {
+        Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
+        Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
+        Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
+        Route::get('/subscription/portal', [SubscriptionController::class, 'portal'])->name('subscription.portal');
+    });
 });
 
 // Admin panel

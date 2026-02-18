@@ -7,7 +7,6 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,6 +34,8 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         if ($user->hasTwoFactorEnabled()) {
+            // Regenerate session ID before storing sensitive 2FA data (prevents session fixation)
+            $request->session()->regenerate();
             $request->session()->put('two_factor:user_id', $user->id);
             $request->session()->put('two_factor:remember', $request->boolean('remember'));
 
@@ -53,14 +54,7 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $userId = Auth::id();
-
         Auth::guard('web')->logout();
-
-        // Force-delete ALL sessions for this user from the database
-        if ($userId) {
-            DB::table('sessions')->where('user_id', $userId)->delete();
-        }
 
         $request->session()->invalidate();
 

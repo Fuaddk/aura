@@ -20,6 +20,7 @@ return new class extends Migration
             $table->integer('emails_found')->default(0);
             $table->integer('tasks_created')->default(0);
             $table->boolean('is_active')->default(true);
+            $table->boolean('auto_sync')->default(true);
             $table->timestamps();
         });
     }

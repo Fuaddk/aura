@@ -263,23 +263,51 @@ class AdminController extends Controller
 
     public function updateSettings(Request $request): RedirectResponse
     {
-        $allowed = [
-            'stripe_key', 'stripe_secret', 'stripe_webhook_secret',
-            'google_client_id', 'google_client_secret',
-            'openai_api_key', 'anthropic_api_key', 'mistral_api_key',
+        $envMap = [
+            'stripe_key'            => 'STRIPE_KEY',
+            'stripe_secret'         => 'STRIPE_SECRET',
+            'stripe_webhook_secret' => 'STRIPE_WEBHOOK_SECRET',
+            'google_client_id'      => 'GOOGLE_CLIENT_ID',
+            'google_client_secret'  => 'GOOGLE_CLIENT_SECRET',
+            'openai_api_key'        => 'OPENAI_API_KEY',
+            'anthropic_api_key'     => 'ANTHROPIC_API_KEY',
+            'mistral_api_key'       => 'MISTRAL_API_KEY',
         ];
 
         $request->validate(
-            collect($allowed)->mapWithKeys(fn($k) => [$k => 'nullable|string|max:500'])->toArray()
+            collect(array_keys($envMap))->mapWithKeys(fn($k) => [$k => 'nullable|string|max:500'])->toArray()
         );
 
-        foreach ($allowed as $key) {
-            $value = $request->input($key);
+        $updated = 0;
+        foreach ($envMap as $formKey => $envKey) {
+            $value = $request->input($formKey);
             if ($value !== null && $value !== '') {
-                AppSetting::set($key, $value);
+                $this->setEnvValue($envKey, $value);
+                $updated++;
             }
         }
 
-        return back()->with('success', 'API-indstillinger gemt.');
+        if ($updated > 0) {
+            \Artisan::call('config:clear');
+        }
+
+        return back()->with('success', $updated > 0 ? "{$updated} nøgle(r) opdateret i .env." : 'Ingen ændringer — alle felter var tomme.');
+    }
+
+    private function setEnvValue(string $key, string $value): void
+    {
+        $envPath = base_path('.env');
+        $content = file_get_contents($envPath);
+
+        // Quote value if it contains spaces or special characters
+        $safe = preg_match('/\s/', $value) ? '"' . addslashes($value) . '"' : $value;
+
+        if (preg_match('/^' . preg_quote($key, '/') . '=.*/m', $content)) {
+            $content = preg_replace('/^' . preg_quote($key, '/') . '=.*/m', $key . '=' . $safe, $content);
+        } else {
+            $content .= "\n" . $key . '=' . $safe;
+        }
+
+        file_put_contents($envPath, $content);
     }
 }

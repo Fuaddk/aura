@@ -99,6 +99,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // API-indstillinger
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+
+    // Subscription plan management
+    Route::post('/subscription-plans', [AdminController::class, 'storePlan'])->name('subscription-plans.store');
+    Route::patch('/subscription-plans/{plan}', [AdminController::class, 'updateSubscriptionPlan'])->name('subscription-plans.update');
+    Route::delete('/subscription-plans/{plan}', [AdminController::class, 'destroySubscriptionPlan'])->name('subscription-plans.destroy');
 });
 
 // Stripe webhook – undtaget CSRF

@@ -1,7 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { Head } from '@inertiajs/vue3';
+
+const props = defineProps({
+    subscriptionPlans: { type: Array, default: () => [] },
+});
 
 const page = usePage();
 const user = page.props.auth.user;
@@ -9,66 +13,24 @@ const currentPlan = user.subscription_plan || 'free';
 
 const loading = ref(null);
 
-const plans = [
-    {
-        id: 'free',
-        name: 'Gratis',
-        price: '0',
-        period: '',
-        description: 'Kom i gang med grundlæggende rådgivning',
-        messages: '50 AI-beskeder/md.',
-        features: [
-            '50 AI-beskeder om måneden',
-            '1 aktiv sag',
-            'Grundlæggende opgavestyring',
-            'Dokumentopbevaring',
-        ],
-        color: '#9ca3af',
-        cta: 'Nuværende plan',
-    },
-    {
-        id: 'pro',
-        name: 'Pro',
-        price: '99',
-        period: '/md.',
-        description: 'Alt hvad du behøver gennem skilsmissen',
-        messages: '500 AI-beskeder/md.',
-        features: [
-            '500 AI-beskeder om måneden',
-            'Ubegrænset sager',
-            'Avancerede opgaver',
-            'Dokumentupload',
-            'Kalenderintegration',
-            'E-mail indbakke',
-        ],
-        color: '#7E75CE',
-        popular: true,
-        cta: 'Skift til Pro',
-    },
-    {
-        id: 'business',
-        name: 'Business',
-        price: '299',
-        period: '/md.',
-        description: 'Ubegrænset adgang til alle funktioner',
-        messages: 'Ubegrænset',
-        features: [
-            'Ubegrænset AI-beskeder',
-            'Ubegrænset sager',
-            'Prioritetssupport',
-            'API-adgang',
-            'Alle Pro-funktioner',
-            'Tidlig adgang til nye funktioner',
-        ],
-        color: '#5BC4E8',
-        cta: 'Skift til Business',
-    },
-];
+const plans = computed(() => props.subscriptionPlans.map(sp => ({
+    id:      sp.slug,
+    name:    sp.name,
+    price:   String(sp.price),
+    period:  sp.price > 0 ? '/md.' : '',
+    description: sp.description || '',
+    messages: sp.messages_limit === 0 ? 'Ubegrænset' : `${sp.messages_limit} AI-beskeder/md.`,
+    features: Array.isArray(sp.features) ? sp.features : [],
+    color:   sp.color || '#9ca3af',
+    popular: sp.is_popular,
+    hasStripe: !!sp.stripe_price_id,
+    cta:     sp.slug === currentPlan ? 'Nuværende plan' : `Skift til ${sp.name}`,
+})));
 
-const startCheckout = (planId) => {
-    if (planId === 'free' || planId === currentPlan || loading.value) return;
-    loading.value = planId;
-    router.post(route('subscription.checkout'), { plan: planId }, {
+const startCheckout = (plan) => {
+    if (plan.id === currentPlan || plan.id === 'free' || !plan.hasStripe || loading.value) return;
+    loading.value = plan.id;
+    router.post(route('subscription.checkout'), { plan: plan.id }, {
         onFinish: () => { loading.value = null; },
     });
 };
@@ -150,8 +112,8 @@ const goBack = () => {
                         'plans-cta-btn',
                         currentPlan === plan.id ? 'plans-cta-current' : (plan.popular ? 'plans-cta-primary' : 'plans-cta-secondary')
                     ]"
-                    :disabled="currentPlan === plan.id || plan.id === 'free' || loading === plan.id"
-                    @click="startCheckout(plan.id)"
+                    :disabled="currentPlan === plan.id || plan.id === 'free' || !plan.hasStripe || loading === plan.id"
+                    @click="startCheckout(plan)"
                 >
                     <span v-if="loading === plan.id" class="plans-spinner"></span>
                     <span v-else-if="currentPlan === plan.id">
@@ -160,6 +122,7 @@ const goBack = () => {
                         </svg>
                         Nuværende plan
                     </span>
+                    <span v-else-if="!plan.hasStripe">Stripe ID mangler</span>
                     <span v-else>{{ plan.cta }}</span>
                 </button>
             </div>

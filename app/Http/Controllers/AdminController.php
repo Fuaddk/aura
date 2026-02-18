@@ -7,6 +7,7 @@ use App\Models\CaseModel;
 use App\Models\Conversation;
 use App\Models\Document;
 use App\Models\KnowledgeChunk;
+use App\Models\SubscriptionPlan;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\KnowledgeService;
@@ -73,6 +74,8 @@ class AdminController extends Controller
             'mistral_api_key'       => $fn(config('services.mistral.key'),           true),
         ]);
 
+        $subscriptionPlans = SubscriptionPlan::orderBy('sort_order')->get();
+
         return [
             'stats'              => $stats,
             'plans'              => $plans,
@@ -80,6 +83,7 @@ class AdminController extends Controller
             'knowledgeSources'   => $knowledgeSources,
             'predefinedSources'  => $predefinedSources,
             'appSettings'        => $appSettings,
+            'subscriptionPlans'  => $subscriptionPlans,
         ];
     }
 
@@ -292,6 +296,66 @@ class AdminController extends Controller
         }
 
         return back()->with('success', $updated > 0 ? "{$updated} nøgle(r) opdateret i .env." : 'Ingen ændringer — alle felter var tomme.');
+    }
+
+    /* ── Subscription plan management ──────────────────────── */
+
+    public function storePlan(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'slug'            => 'required|string|max:50|unique:subscription_plans,slug|regex:/^[a-z0-9\-]+$/',
+            'name'            => 'required|string|max:100',
+            'description'     => 'nullable|string|max:300',
+            'price'           => 'required|integer|min:0',
+            'messages_limit'  => 'required|integer|min:0',
+            'features'        => 'nullable|string',
+            'stripe_price_id' => 'nullable|string|max:200',
+            'color'           => 'nullable|string|max:20',
+            'is_popular'      => 'boolean',
+            'is_active'       => 'boolean',
+            'sort_order'      => 'integer|min:0',
+        ]);
+
+        $data['features'] = $this->parseFeatures($data['features'] ?? '');
+
+        SubscriptionPlan::create($data);
+
+        return back()->with('success', "Plan \"{$data['name']}\" oprettet.");
+    }
+
+    public function updateSubscriptionPlan(Request $request, SubscriptionPlan $plan): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'            => 'required|string|max:100',
+            'description'     => 'nullable|string|max:300',
+            'price'           => 'required|integer|min:0',
+            'messages_limit'  => 'required|integer|min:0',
+            'features'        => 'nullable|string',
+            'stripe_price_id' => 'nullable|string|max:200',
+            'color'           => 'nullable|string|max:20',
+            'is_popular'      => 'boolean',
+            'is_active'       => 'boolean',
+            'sort_order'      => 'integer|min:0',
+        ]);
+
+        $data['features'] = $this->parseFeatures($data['features'] ?? '');
+
+        $plan->update($data);
+
+        return back()->with('success', "Plan \"{$plan->name}\" opdateret.");
+    }
+
+    public function destroySubscriptionPlan(SubscriptionPlan $plan): RedirectResponse
+    {
+        $plan->delete();
+        return back()->with('success', "Plan \"{$plan->name}\" slettet.");
+    }
+
+    private function parseFeatures(string $raw): array
+    {
+        return array_values(array_filter(
+            array_map('trim', explode("\n", $raw))
+        ));
     }
 
     private function setEnvValue(string $key, string $value): void

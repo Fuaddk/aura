@@ -3,14 +3,15 @@ import { ref, computed, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
-    stats:             Object,
-    plans:             Object,
-    users:             Object,
-    knowledgeSources:  { type: Array, default: () => [] },
-    predefinedSources: { type: Array, default: () => [] },
-    viewUser:          { type: Object, default: null },
-    userCases:         { type: Array, default: () => [] },
-    appSettings:       { type: Object, default: () => ({}) },
+    stats:              Object,
+    plans:              Object,
+    users:              Object,
+    knowledgeSources:   { type: Array, default: () => [] },
+    predefinedSources:  { type: Array, default: () => [] },
+    viewUser:           { type: Object, default: null },
+    userCases:          { type: Array, default: () => [] },
+    appSettings:        { type: Object, default: () => ({}) },
+    subscriptionPlans:  { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -158,6 +159,60 @@ const saveSettings = () => {
     });
 };
 
+/* ── Subscription plan management ───────────────────────── */
+const emptyPlan = () => ({
+    slug: '', name: '', description: '', price: 0, messages_limit: 50,
+    features: '', stripe_price_id: '', color: '#7E75CE',
+    is_popular: false, is_active: true, sort_order: 0,
+});
+
+const showNewPlanForm = ref(false);
+const newPlan = ref(emptyPlan());
+const savingNewPlan = ref(false);
+const editingPlanId = ref(null);
+const editPlan = ref(emptyPlan());
+const savingEditPlan = ref(false);
+const deletingPlanId = ref(null);
+
+const featuresText = (arr) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
+
+const startEditPlan = (plan) => {
+    editingPlanId.value = plan.id;
+    editPlan.value = {
+        ...plan,
+        features: featuresText(plan.features),
+    };
+};
+
+const cancelEditPlan = () => { editingPlanId.value = null; };
+
+const savePlan = () => {
+    savingEditPlan.value = true;
+    router.patch(route('admin.subscription-plans.update', editingPlanId.value), editPlan.value, {
+        preserveScroll: true,
+        onSuccess: () => { editingPlanId.value = null; },
+        onFinish: () => { savingEditPlan.value = false; },
+    });
+};
+
+const createPlan = () => {
+    savingNewPlan.value = true;
+    router.post(route('admin.subscription-plans.store'), newPlan.value, {
+        preserveScroll: true,
+        onSuccess: () => { showNewPlanForm.value = false; newPlan.value = emptyPlan(); },
+        onFinish: () => { savingNewPlan.value = false; },
+    });
+};
+
+const deletePlan = (plan) => {
+    if (!confirm(`Slet plan "${plan.name}"?`)) return;
+    deletingPlanId.value = plan.id;
+    router.delete(route('admin.subscription-plans.destroy', plan.id), {
+        preserveScroll: true,
+        onFinish: () => { deletingPlanId.value = null; },
+    });
+};
+
 /* ── Helpers ────────────────────────────────────────────── */
 const formatDate = (date) => {
     if (!date) return '';
@@ -273,6 +328,7 @@ const nav = [
 
             <!-- ABONNEMENTER -->
             <section v-if="activeTab === 'plans'">
+                <!-- Fordeling -->
                 <h2 class="adm-section-title">Abonnementsfordeling</h2>
                 <div class="adm-plans-grid">
                     <div v-for="plan in ['free', 'pro', 'business']" :key="plan" class="adm-plan-card">
@@ -281,6 +337,155 @@ const nav = [
                         <div class="adm-plan-pct">{{ totalPlans > 0 ? Math.round(((plans[plan] || 0) / totalPlans) * 100) : 0 }}%</div>
                         <div class="adm-plan-bar-wrap">
                             <div class="adm-plan-bar" :style="{ width: totalPlans > 0 ? ((plans[plan] || 0) / totalPlans * 100) + '%' : '0%', background: planColor[plan] }"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plan konfiguration -->
+                <div class="adm-sp-header">
+                    <h2 class="adm-section-title" style="margin:0">Pakkekonfiguration</h2>
+                    <button @click="showNewPlanForm = !showNewPlanForm" class="adm-btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        Ny pakke
+                    </button>
+                </div>
+
+                <!-- Ny pakke formular -->
+                <div v-if="showNewPlanForm" class="adm-sp-form adm-sp-form-new">
+                    <h3 class="adm-sp-form-title">Opret ny pakke</h3>
+                    <div class="adm-sp-grid">
+                        <div class="adm-sp-field">
+                            <label>Slug <span class="adm-sp-hint">(fx: premium)</span></label>
+                            <input v-model="newPlan.slug" type="text" placeholder="custom-plan" class="adm-input" />
+                        </div>
+                        <div class="adm-sp-field">
+                            <label>Navn</label>
+                            <input v-model="newPlan.name" type="text" placeholder="Premium" class="adm-input" />
+                        </div>
+                        <div class="adm-sp-field">
+                            <label>Pris (kr/md)</label>
+                            <input v-model.number="newPlan.price" type="number" min="0" class="adm-input" />
+                        </div>
+                        <div class="adm-sp-field">
+                            <label>AI-beskeder/md <span class="adm-sp-hint">(0 = ubegrænset)</span></label>
+                            <input v-model.number="newPlan.messages_limit" type="number" min="0" class="adm-input" />
+                        </div>
+                        <div class="adm-sp-field">
+                            <label>Stripe Price ID</label>
+                            <input v-model="newPlan.stripe_price_id" type="text" placeholder="price_xxxxxxxxxxxxxxxx" class="adm-input adm-input-mono" />
+                        </div>
+                        <div class="adm-sp-field">
+                            <label>Farve (hex)</label>
+                            <div class="adm-sp-color-row">
+                                <input type="color" v-model="newPlan.color" class="adm-color-input" />
+                                <input v-model="newPlan.color" type="text" class="adm-input" style="flex:1" />
+                            </div>
+                        </div>
+                        <div class="adm-sp-field">
+                            <label>Rækkefølge</label>
+                            <input v-model.number="newPlan.sort_order" type="number" min="0" class="adm-input" />
+                        </div>
+                        <div class="adm-sp-field adm-sp-checkboxes">
+                            <label><input type="checkbox" v-model="newPlan.is_popular" /> Mest populær</label>
+                            <label><input type="checkbox" v-model="newPlan.is_active" /> Aktiv</label>
+                        </div>
+                    </div>
+                    <div class="adm-sp-field" style="margin-top:.75rem">
+                        <label>Beskrivelse</label>
+                        <input v-model="newPlan.description" type="text" placeholder="Kort beskrivelse af pakken" class="adm-input" />
+                    </div>
+                    <div class="adm-sp-field" style="margin-top:.75rem">
+                        <label>Features <span class="adm-sp-hint">(én per linje)</span></label>
+                        <textarea v-model="newPlan.features" rows="4" placeholder="500 AI-beskeder om måneden&#10;Ubegrænset sager&#10;Dokumentupload" class="adm-input adm-textarea"></textarea>
+                    </div>
+                    <div class="adm-sp-actions">
+                        <button @click="createPlan" :disabled="savingNewPlan" class="adm-btn-primary">
+                            {{ savingNewPlan ? 'Gemmer...' : 'Opret pakke' }}
+                        </button>
+                        <button @click="showNewPlanForm = false" class="adm-btn-ghost">Annuller</button>
+                    </div>
+                </div>
+
+                <!-- Liste af planer -->
+                <div class="adm-sp-list">
+                    <div v-for="sp in subscriptionPlans" :key="sp.id" class="adm-sp-item">
+                        <!-- Vis-tilstand -->
+                        <div v-if="editingPlanId !== sp.id" class="adm-sp-row">
+                            <div class="adm-sp-dot" :style="{ background: sp.color }"></div>
+                            <div class="adm-sp-info">
+                                <div class="adm-sp-name">
+                                    {{ sp.name }}
+                                    <span v-if="sp.is_popular" class="adm-badge-popular">Populær</span>
+                                    <span v-if="!sp.is_active" class="adm-badge-inactive">Inaktiv</span>
+                                </div>
+                                <div class="adm-sp-meta">{{ sp.price }} kr/md · {{ sp.messages_limit === 0 ? 'Ubegrænset' : sp.messages_limit + ' beskeder' }}</div>
+                            </div>
+                            <div class="adm-sp-stripe" :class="sp.stripe_price_id ? 'adm-sp-stripe-ok' : 'adm-sp-stripe-missing'">
+                                <span v-if="sp.stripe_price_id">
+                                    <span class="adm-dot-ok">●</span> {{ sp.stripe_price_id.substring(0, 20) }}…
+                                </span>
+                                <span v-else><span class="adm-dot-off">○</span> Stripe ID mangler</span>
+                            </div>
+                            <div class="adm-sp-btns">
+                                <button @click="startEditPlan(sp)" class="adm-icon-btn" title="Rediger">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+                                </button>
+                                <button @click="deletePlan(sp)" :disabled="deletingPlanId === sp.id" class="adm-delete-btn" title="Slet">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Rediger-tilstand -->
+                        <div v-else class="adm-sp-form">
+                            <h3 class="adm-sp-form-title">Rediger: {{ sp.name }}</h3>
+                            <div class="adm-sp-grid">
+                                <div class="adm-sp-field">
+                                    <label>Navn</label>
+                                    <input v-model="editPlan.name" type="text" class="adm-input" />
+                                </div>
+                                <div class="adm-sp-field">
+                                    <label>Pris (kr/md)</label>
+                                    <input v-model.number="editPlan.price" type="number" min="0" class="adm-input" />
+                                </div>
+                                <div class="adm-sp-field">
+                                    <label>AI-beskeder/md <span class="adm-sp-hint">(0 = ubegrænset)</span></label>
+                                    <input v-model.number="editPlan.messages_limit" type="number" min="0" class="adm-input" />
+                                </div>
+                                <div class="adm-sp-field">
+                                    <label>Stripe Price ID</label>
+                                    <input v-model="editPlan.stripe_price_id" type="text" placeholder="price_xxxxxxxxxxxxxxxx" class="adm-input adm-input-mono" />
+                                </div>
+                                <div class="adm-sp-field">
+                                    <label>Farve (hex)</label>
+                                    <div class="adm-sp-color-row">
+                                        <input type="color" v-model="editPlan.color" class="adm-color-input" />
+                                        <input v-model="editPlan.color" type="text" class="adm-input" style="flex:1" />
+                                    </div>
+                                </div>
+                                <div class="adm-sp-field">
+                                    <label>Rækkefølge</label>
+                                    <input v-model.number="editPlan.sort_order" type="number" min="0" class="adm-input" />
+                                </div>
+                                <div class="adm-sp-field adm-sp-checkboxes">
+                                    <label><input type="checkbox" v-model="editPlan.is_popular" /> Mest populær</label>
+                                    <label><input type="checkbox" v-model="editPlan.is_active" /> Aktiv</label>
+                                </div>
+                            </div>
+                            <div class="adm-sp-field" style="margin-top:.75rem">
+                                <label>Beskrivelse</label>
+                                <input v-model="editPlan.description" type="text" class="adm-input" />
+                            </div>
+                            <div class="adm-sp-field" style="margin-top:.75rem">
+                                <label>Features <span class="adm-sp-hint">(én per linje)</span></label>
+                                <textarea v-model="editPlan.features" rows="4" class="adm-input adm-textarea"></textarea>
+                            </div>
+                            <div class="adm-sp-actions">
+                                <button @click="savePlan" :disabled="savingEditPlan" class="adm-btn-primary">
+                                    {{ savingEditPlan ? 'Gemmer...' : 'Gem ændringer' }}
+                                </button>
+                                <button @click="cancelEditPlan" class="adm-btn-ghost">Annuller</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -776,5 +981,43 @@ const nav = [
 .adm-api-indicator-ok  { color: #16a34a; }
 .adm-api-indicator-off { color: #9ca3af; }
 .adm-api-preview { margin-top: 0.375rem; font-size: 0.75rem; font-family: monospace; color: #6b7280; background: #f3f4f6; border-radius: 0.375rem; padding: 0.25rem 0.5rem; word-break: break-all; }
+
+/* Subscription plan management */
+.adm-sp-header { display: flex; align-items: center; justify-content: space-between; margin: 2rem 0 1rem; }
+.adm-btn-primary { display: inline-flex; align-items: center; gap: 0.375rem; background: #7E75CE; color: #fff; border: none; border-radius: 0.625rem; padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.adm-btn-primary:hover { background: #6d64be; }
+.adm-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.adm-btn-ghost { background: none; border: 1.5px solid #e5e7eb; color: #6b7280; border-radius: 0.625rem; padding: 0.5rem 1rem; font-size: 0.875rem; cursor: pointer; transition: background 0.15s; }
+.adm-btn-ghost:hover { background: #f3f4f6; }
+.adm-sp-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.adm-sp-item { border: 1.5px solid #e5e7eb; border-radius: 0.875rem; overflow: hidden; }
+.adm-sp-row { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; }
+.adm-sp-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.adm-sp-info { flex: 1; min-width: 0; }
+.adm-sp-name { font-size: 0.9375rem; font-weight: 600; color: #111827; display: flex; align-items: center; gap: 0.5rem; }
+.adm-sp-meta { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.125rem; }
+.adm-sp-stripe { font-size: 0.75rem; font-family: monospace; color: #6b7280; flex-shrink: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-sp-stripe-missing { color: #ef4444; }
+.adm-sp-btns { display: flex; gap: 0.5rem; }
+.adm-badge-popular { font-size: 0.65rem; font-weight: 700; background: #ede9fe; color: #7c3aed; padding: 0.15rem 0.5rem; border-radius: 9999px; }
+.adm-badge-inactive { font-size: 0.65rem; font-weight: 700; background: #f3f4f6; color: #9ca3af; padding: 0.15rem 0.5rem; border-radius: 9999px; }
+.adm-dot-ok { color: #22c55e; }
+.adm-dot-off { color: #d1d5db; }
+.adm-sp-form { padding: 1.25rem; background: #fafafa; border-top: 1px solid #f3f4f6; }
+.adm-sp-form-new { background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 0.875rem; margin-bottom: 1rem; }
+.adm-sp-form-title { font-size: 0.9375rem; font-weight: 600; color: #111827; margin: 0 0 1rem; }
+.adm-sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+.adm-sp-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.adm-sp-field label { font-size: 0.8125rem; font-weight: 500; color: #374151; }
+.adm-sp-hint { font-weight: 400; color: #9ca3af; font-size: 0.75rem; }
+.adm-input { padding: 0.5rem 0.625rem; border: 1.5px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; color: #111827; background: #fff; width: 100%; box-sizing: border-box; transition: border-color 0.15s; }
+.adm-input:focus { outline: none; border-color: #7E75CE; }
+.adm-input-mono { font-family: monospace; }
+.adm-textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+.adm-sp-color-row { display: flex; align-items: center; gap: 0.5rem; }
+.adm-color-input { width: 2.25rem; height: 2.25rem; border-radius: 0.375rem; border: 1.5px solid #e5e7eb; cursor: pointer; padding: 0; }
+.adm-sp-checkboxes { flex-direction: row; gap: 1rem; align-items: center; padding-top: 1.2rem; }
+.adm-sp-checkboxes label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.875rem; color: #374151; cursor: pointer; }
+.adm-sp-actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
 
 </style>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +21,11 @@ class SubscriptionController extends Controller
 
     public function plans(): Response
     {
-        return Inertia::render('Subscription/Plans');
+        $plans = SubscriptionPlan::orderBy('sort_order')
+            ->where('is_active', true)
+            ->get();
+
+        return Inertia::render('Subscription/Plans', ['subscriptionPlans' => $plans]);
     }
 
     /**
@@ -29,16 +34,22 @@ class SubscriptionController extends Controller
     public function checkout(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'plan' => ['required', 'in:pro,business'],
+            'plan' => ['required', 'string'],
         ]);
 
-        $plan  = $validated['plan'];
-        $user  = $request->user();
-        $price = config("services.stripe.prices.{$plan}");
+        $plan     = $validated['plan'];
+        $user     = $request->user();
+        $planModel = SubscriptionPlan::where('slug', $plan)
+            ->where('is_active', true)
+            ->whereNotNull('stripe_price_id')
+            ->first();
 
-        if (!$price) {
-            return back()->withErrors(['plan' => 'Ugyldig plan valgt.']);
+        if (!$planModel) {
+            return back()->withErrors(['plan' => 'Ugyldig plan eller Stripe Price ID mangler for denne plan.']);
         }
+
+        $price = $planModel->stripe_price_id;
+        $limit = $planModel->messages_limit === 0 ? 999999 : $planModel->messages_limit;
 
         try {
             // If already subscribed, swap plan. Otherwise create new subscription.
@@ -47,7 +58,7 @@ class SubscriptionController extends Controller
 
                 $user->update([
                     'subscription_plan' => $plan,
-                    'ai_messages_limit' => $this->limits[$plan],
+                    'ai_messages_limit' => $limit,
                 ]);
 
                 return redirect()->route('profile.edit', ['section' => 'subscription'])

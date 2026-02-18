@@ -33,6 +33,7 @@ const navItems = [
 /* ── Forms ─────────────────────────────────────────────── */
 const profileForm = useForm({
     name:             authUser.value.name             || '',
+    email:            authUser.value.email            || '',
     display_name:     authUser.value.display_name     || '',
     work_description: authUser.value.work_description || '',
     preferences:      authUser.value.preferences      || '',

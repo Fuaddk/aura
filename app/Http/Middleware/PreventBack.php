@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PreventBack
 {
@@ -13,8 +14,8 @@ class PreventBack
     {
         $response = $next($request);
 
-        // Skip cache headers for file downloads (PDF, images, etc.)
-        if ($response instanceof BinaryFileResponse) {
+        // Skip cache headers for file downloads and SSE streams
+        if ($response instanceof BinaryFileResponse || $response instanceof StreamedResponse) {
             return $response;
         }
 

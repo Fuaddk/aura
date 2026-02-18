@@ -47,13 +47,6 @@ return [
         'key' => env('MISTRAL_API_KEY'),
     ],
 
-    'stripe' => [
-        'prices' => [
-            'pro'      => env('STRIPE_PRICE_PRO'),
-            'business' => env('STRIPE_PRICE_BUSINESS'),
-        ],
-    ],
-
     'google' => [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

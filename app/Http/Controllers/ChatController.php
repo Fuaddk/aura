@@ -664,8 +664,11 @@ SECTION;
 
         $user = auth()->user();
         $userPersonSection = '';
-        if (!empty($user->work_description) || !empty($user->preferences)) {
+        $hasProfile = !empty($user->display_name) || !empty($user->work_description) || !empty($user->preferences);
+        if ($hasProfile) {
             $userPersonSection = "\n─── BRUGERENS PROFIL ───\n";
+            $calledBy = !empty($user->display_name) ? $user->display_name : $user->name;
+            $userPersonSection .= "Kald altid brugeren: {$calledBy}\n";
             if (!empty($user->work_description)) {
                 $userPersonSection .= "Hvem er brugeren: {$user->work_description}\n";
             }
@@ -1154,8 +1157,11 @@ PROMPT;
 
         $user = auth()->user();
         $userPersonSection = '';
-        if (!empty($user->work_description) || !empty($user->preferences)) {
+        $hasProfile = !empty($user->display_name) || !empty($user->work_description) || !empty($user->preferences);
+        if ($hasProfile) {
             $userPersonSection = "\n─── BRUGERENS PROFIL ───\n";
+            $calledBy = !empty($user->display_name) ? $user->display_name : $user->name;
+            $userPersonSection .= "Kald altid brugeren: {$calledBy}\n";
             if (!empty($user->work_description)) {
                 $userPersonSection .= "Hvem er brugeren: {$user->work_description}\n";
             }

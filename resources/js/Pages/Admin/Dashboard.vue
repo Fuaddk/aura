@@ -17,6 +17,13 @@ const props = defineProps({
 const page = usePage();
 const flash = computed(() => page.props.flash || {});
 
+const displayId = (id) => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let seed = id;
+    const next = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return chars[seed % chars.length]; };
+    return `${next()}${next()}${next()}${next()}-${next()}${next()}${next()}${next()}-${next()}${next()}${next()}${next()}`;
+};
+
 // Active tab — auto-switch to 'chat' if viewUser prop present
 const activeTab = ref(props.viewUser ? 'chat' : 'overview');
 watch(() => props.viewUser, (v) => { if (v) activeTab.value = 'chat'; });
@@ -503,7 +510,7 @@ const nav = [
                         </thead>
                         <tbody>
                             <tr v-for="user in users.data" :key="user.id" :class="{ 'adm-row-admin': user.is_admin }">
-                                <td class="adm-user-id">#{{ user.id }}</td>
+                                <td class="adm-user-id" :title="'DB ID: ' + user.id">{{ displayId(user.id) }}</td>
                                 <td>
                                     <span class="adm-user-name">{{ user.name }}</span>
                                     <span v-if="user.is_admin" class="adm-badge-admin">Admin</span>

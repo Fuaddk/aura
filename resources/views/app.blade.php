@@ -21,7 +21,7 @@
         <script>
             window.addEventListener('unload', function(){});
             window.addEventListener('pageshow', function(e){ if(e.persisted) window.location.replace(window.location.href); });
-            window.addEventListener('popstate', function(){ window.location.reload(); });
+            window.addEventListener('popstate', function(){ document.body.style.visibility='hidden'; window.location.reload(); });
         </script>
 
         <!-- Scripts -->

@@ -80,6 +80,8 @@ class SubscriptionController extends Controller
                         'subscription_plan' => $plan,
                         'ai_messages_limit' => $this->limits[$plan],
                     ]);
+
+                    \App\Services\NotificationService::notifySubscriptionUpgraded($user, $plan);
                 }
             } catch (\Exception $e) {
                 Log::error('Stripe checkout success error', ['error' => $e->getMessage()]);
@@ -126,6 +128,25 @@ class SubscriptionController extends Controller
      */
     public function webhook(Request $request)
     {
+        // Detect renewal events before delegating to Cashier
+        try {
+            $payload       = json_decode($request->getContent(), true);
+            $eventType     = $payload['type'] ?? null;
+            $billingReason = $payload['data']['object']['billing_reason'] ?? null;
+
+            if ($eventType === 'invoice.payment_succeeded' && $billingReason === 'subscription_cycle') {
+                $customerId = $payload['data']['object']['customer'] ?? null;
+                if ($customerId) {
+                    $user = \App\Models\User::where('stripe_id', $customerId)->first();
+                    if ($user) {
+                        \App\Services\NotificationService::notifySubscriptionRenewed($user);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Webhook notification error', ['error' => $e->getMessage()]);
+        }
+
         // Laravel Cashier's built-in webhook handler
         return app(\Laravel\Cashier\Http\Controllers\WebhookController::class)
             ->handleWebhook($request);

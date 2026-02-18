@@ -45,7 +45,14 @@ class KnowledgeService
     {
         try {
             $response = Http::timeout(30)
-                ->withHeaders(['User-Agent' => 'AuraBot/1.0 (Danish Family Law Knowledge)'])
+                ->withHeaders([
+                    'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language' => 'da,en-US;q=0.7,en;q=0.3',
+                    'Accept-Encoding' => 'gzip, deflate, br',
+                    'Cache-Control'   => 'no-cache',
+                    'Pragma'          => 'no-cache',
+                ])
                 ->get($url);
 
             if (!$response->successful()) {
@@ -150,7 +157,7 @@ class KnowledgeService
     /**
      * Rough token estimation (~1 token per 4 chars for Danish text).
      */
-    private function estimateTokens(string $text): int
+    public function estimateTokens(string $text): int
     {
         return (int) ceil(mb_strlen($text) / 4);
     }

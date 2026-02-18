@@ -2,8 +2,8 @@
 import { ref, onMounted, nextTick, computed } from 'vue';
 import ChatLayout from '@/Layouts/ChatLayout.vue';
 import ChatSidebar from '@/Components/ChatSidebar.vue';
+import NotificationBell from '@/Components/NotificationBell.vue';
 import { Head, router } from '@inertiajs/vue3';
-import axios from 'axios';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -13,6 +13,37 @@ marked.setOptions({ breaks: true, gfm: true });
 const renderMarkdown = (text) => {
     if (!text) return '';
     return DOMPurify.sanitize(marked.parse(text));
+};
+
+const renderWithCursor = (text) => {
+    if (!text) return '';
+    const html = DOMPurify.sanitize(marked.parse(text));
+    // Insert cursor before the last closing tag so it sits inline with the text
+    return html.replace(/(<\/\w+>)\s*$/, '<span class="streaming-cursor"></span>$1');
+};
+
+// Read XSRF-TOKEN cookie (Laravel sets it automatically)
+const getCsrfToken = () => {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+};
+
+// Typewriter — mutates through messages.value[index] so Vue detects the change
+let typewriterTimer = null;
+const typewriter = (index, fullText, onComplete) => {
+    if (typewriterTimer) clearInterval(typewriterTimer);
+    const total = fullText.length;
+    if (total === 0) { onComplete?.(); return; }
+    let shown = 0;
+    typewriterTimer = setInterval(() => {
+        shown++;
+        messages.value[index].content = fullText.slice(0, shown);
+        if (shown >= total) {
+            clearInterval(typewriterTimer);
+            typewriterTimer = null;
+            onComplete?.();
+        }
+    }, 18);
 };
 
 const props = defineProps({
@@ -38,67 +69,190 @@ const textarea = ref(null);
 const currentCaseId = ref(props.activeCase?.id || null);
 let abortController = null;
 
+// File upload state
+const uploadFile = ref(null);
+const uploadPreview = ref(null);
+const fileInputRef = ref(null);
+
+const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadFile.value = file;
+    uploadPreview.value = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+    };
+    // Reset so the same file can be re-selected after clearing
+    e.target.value = '';
+};
+
+const clearUpload = () => {
+    uploadFile.value = null;
+    uploadPreview.value = null;
+};
+
+const formatBytes = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+};
+
 const sendMessage = async () => {
-    if (!message.value.trim() || isLoading.value) return;
+    const hasFile = !!uploadFile.value;
+    if (!hasFile && !message.value.trim()) return;
+    if (isLoading.value) return;
+    isLoading.value = true;
 
     const userMessage = message.value;
+    const fileToSend  = uploadFile.value;
+    const previewSnap = uploadPreview.value;
     message.value = '';
     resetTextareaHeight();
+    clearUpload();
 
+    // Push user message (show filename chip if file attached)
+    const userContent = hasFile
+        ? (userMessage.trim() ? `📎 ${previewSnap.name}\n\n${userMessage}` : `📎 ${previewSnap.name}`)
+        : userMessage;
     messages.value.push({
         role: 'user',
-        content: userMessage,
+        content: userContent,
         created_at: new Date().toISOString(),
+        uploadedFile: hasFile ? previewSnap : null,
     });
 
+    // Add a streaming placeholder — track by index so typewriter uses the reactive proxy
+    messages.value.push({
+        role: 'assistant',
+        content: '',
+        created_at: new Date().toISOString(),
+        tasks: [],
+        document: null,
+        isStreaming: true,
+    });
+    const msgIndex = messages.value.length - 1;
+
     scrollToBottom();
-    isLoading.value = true;
     abortController = new AbortController();
 
     try {
-        const response = await axios.post(route('chat.send'), {
-            message: userMessage,
-            case_id: currentCaseId.value,
-        }, { signal: abortController.signal });
-
-        messages.value.push({
-            role: 'assistant',
-            content: response.data.message,
-            created_at: new Date().toISOString(),
-            tasks: response.data.tasks || [],
-            document: response.data.document || null,
-        });
-
-        // Update case ID if a new case was created
-        if (response.data.case_id && !currentCaseId.value) {
-            currentCaseId.value = response.data.case_id;
-            // Update URL so reload gets the right activeCase
-            window.history.replaceState({}, '', route('dashboard', { case: response.data.case_id }));
+        let res;
+        if (hasFile) {
+            const formData = new FormData();
+            formData.append('file', fileToSend);
+            if (currentCaseId.value) formData.append('case_id', currentCaseId.value);
+            if (userMessage.trim()) formData.append('message', userMessage);
+            res = await fetch(route('chat.upload'), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'text/event-stream',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: formData,
+                signal: abortController.signal,
+            });
+        } else {
+            res = await fetch(route('chat.send'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({
+                    message: userMessage,
+                    case_id: currentCaseId.value,
+                }),
+                signal: abortController.signal,
+            });
         }
 
-        scrollToBottom();
-
-        // Reload sidebar data (cases, tasks, activeCase)
-        router.reload({ only: ['cases', 'tasks', 'activeCase'] });
-    } catch (error) {
-        if (axios.isCancel(error)) {
-            messages.value.push({
-                role: 'assistant',
-                content: 'Svar stoppet.',
-                created_at: new Date().toISOString(),
-            });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            messages.value[msgIndex].content = res.status === 429
+                ? (errData.message || 'Du har brugt alle dine AI-beskeder denne måned.')
+                : 'Beklager, der skete en fejl. Prøv venligst igen.';
+            messages.value[msgIndex].isStreaming = false;
             scrollToBottom();
+            return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const raw = line.slice(6).trim();
+                if (!raw) continue;
+
+                let evt;
+                try { evt = JSON.parse(raw); } catch { continue; }
+
+                if (evt.type === 'done') {
+                    // Hold tasks/document back — only reveal after typing is done
+                    const pendingTasks    = evt.tasks || [];
+                    const pendingDocument = evt.document || null;
+                    messages.value[msgIndex].content = '';
+
+                    if (evt.case_id && !currentCaseId.value) {
+                        currentCaseId.value = evt.case_id;
+                        window.history.replaceState({}, '', route('dashboard', { case: evt.case_id }));
+                    }
+
+                    typewriter(msgIndex, evt.message, () => {
+                        messages.value[msgIndex].isStreaming = false;
+                        messages.value[msgIndex].tasks    = pendingTasks;
+                        messages.value[msgIndex].document = pendingDocument;
+                        scrollToBottom();
+                        router.reload({
+                            only: [
+                                'cases',
+                                'tasks',
+                                'activeCase',
+                                'pendingTaskCount',
+                                'urgentTaskCount',
+                                'warningTaskCount',
+                                'soonTaskCount',
+                                'taskDueDates'
+                            ]
+                        });
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        const msg = messages.value[msgIndex];
+        if (error.name === 'AbortError') {
+            msg.content = msg.content || 'Svar stoppet.';
         } else {
             console.error('Error sending message:', error);
-            messages.value.push({
-                role: 'assistant',
-                content: 'Beklager, der skete en fejl. Prøv venligst igen.',
-                created_at: new Date().toISOString(),
-            });
-            scrollToBottom();
+            msg.content = 'Beklager, der skete en fejl. Prøv venligst igen.';
         }
-        // Still reload cases in case the case was created before the error
-        router.reload({ only: ['cases', 'activeCase'] });
+        msg.isStreaming = false;
+        scrollToBottom();
+        router.reload({
+            only: [
+                'cases',
+                'activeCase',
+                'pendingTaskCount',
+                'urgentTaskCount',
+                'warningTaskCount',
+                'soonTaskCount',
+                'taskDueDates'
+            ]
+        });
     } finally {
         isLoading.value = false;
         abortController = null;
@@ -106,9 +260,7 @@ const sendMessage = async () => {
 };
 
 const stopGenerating = () => {
-    if (abortController) {
-        abortController.abort();
-    }
+    abortController?.abort();
 };
 
 const scrollToBottom = () => {
@@ -145,7 +297,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <Head title="Aura - Din AI Assistent" />
+    <Head title="Aura" />
 
     <ChatLayout>
         <div class="chat-container">
@@ -155,7 +307,7 @@ onMounted(() => {
                 :active-case="activeCase"
                 :cases="cases"
                 :open="sidebarOpen"
-                @close="sidebarOpen = false"
+                @toggle="sidebarOpen = !sidebarOpen"
             />
 
             <!-- Main Chat Area -->
@@ -163,21 +315,13 @@ onMounted(() => {
 
                 <!-- Top Bar -->
                 <div class="chat-header">
-                    <button
-                        v-if="!sidebarOpen"
-                        @click="sidebarOpen = true"
-                        class="chat-topbar-toggle"
-                        title="Åbn sidebar"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
-                        </svg>
-                    </button>
                     <img src="/cirkel.png" alt="Aura" class="chat-header-avatar" />
                     <div>
                         <div class="chat-header-title">Aura</div>
                         <div class="chat-header-sub">Din personlige sparringspartner</div>
                     </div>
+
+                    <NotificationBell style="margin-left: auto;" />
                 </div>
 
                 <!-- Messages Area -->
@@ -193,8 +337,8 @@ onMounted(() => {
                                     Hej {{ $page.props.auth.user.name.split(' ')[0] }} 👋
                                 </h1>
                                 <p class="chat-welcome-sub">
-                                    Jeg er Aura — din fortrolige assistent gennem skilsmisseprocessen.<br>
-                                    Jeg er her for at lytte, guide og hjælpe dig videre, ét skridt ad gangen.
+                                    Jeg er Aura — din fortrolige støtte i en svær tid.<br>
+                                    Jeg lytter, guider og hjælper dig videre, ét skridt ad gangen.
                                 </p>
                             </div>
 
@@ -272,7 +416,13 @@ onMounted(() => {
                                 <div v-else class="chat-msg-assistant">
                                     <img src="/cirkel.png" alt="Aura" class="chat-msg-avatar-img" />
                                     <div class="chat-msg-assistant-content">
-                                        <div class="chat-msg-body" v-html="renderMarkdown(msg.content)"></div>
+                                        <!-- Streaming: show loading dots until first chunk -->
+                                        <div v-if="msg.isStreaming && !msg.content" class="chat-loading-dots" style="padding: 4px 0;">
+                                            <div class="chat-loading-dot"></div>
+                                            <div class="chat-loading-dot"></div>
+                                            <div class="chat-loading-dot"></div>
+                                        </div>
+                                        <div v-else class="chat-msg-body" v-html="msg.isStreaming ? renderWithCursor(msg.content) : renderMarkdown(msg.content)"></div>
 
                                         <!-- Document generated by AI -->
                                         <div v-if="msg.document" class="chat-document">
@@ -320,42 +470,63 @@ onMounted(() => {
                                 </div>
                             </div>
 
-                            <!-- Loading Indicator -->
-                            <div v-if="isLoading" class="chat-loading">
-                                <img src="/cirkel.png" alt="Aura" class="chat-msg-avatar-img" />
-                                <div class="chat-loading-dots">
-                                    <div class="chat-loading-dot"></div>
-                                    <div class="chat-loading-dot"></div>
-                                    <div class="chat-loading-dot"></div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Input Area -->
                 <div class="chat-input-area">
-                    <div class="chat-input-inner">
-                        <button v-if="isLoading" @click="stopGenerating" class="chat-stop-btn">
+                    <div class="chat-input-inner" :style="isLoading ? { pointerEvents: 'none', userSelect: 'none' } : {}">
+                        <button v-if="isLoading" @click="stopGenerating" class="chat-stop-btn" style="pointer-events: auto">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z" />
                             </svg>
                             Stop svar
                         </button>
+
+                        <!-- File preview pill -->
+                        <div v-if="uploadPreview" class="chat-file-preview">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="chat-file-preview-icon">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                            </svg>
+                            <span class="chat-file-preview-name">{{ uploadPreview.name }}</span>
+                            <span class="chat-file-preview-size">{{ formatBytes(uploadPreview.size) }}</span>
+                            <button @click="clearUpload" class="chat-file-preview-remove" title="Fjern fil">×</button>
+                        </div>
+
                         <div class="chat-input-container">
+                            <!-- Hidden file input -->
+                            <input
+                                ref="fileInputRef"
+                                type="file"
+                                accept=".pdf,.txt,.jpg,.jpeg,.png"
+                                class="chat-file-input-hidden"
+                                @change="handleFileSelect"
+                            />
                             <textarea
                                 ref="textarea"
                                 v-model="message"
                                 @input="autoResizeTextarea"
                                 @keydown.enter.exact.prevent="sendMessage"
-                                placeholder="Skriv en besked..."
+                                :placeholder="uploadPreview ? 'Tilføj en besked til dokumentet (valgfrit)...' : 'Skriv en besked...'"
                                 rows="1"
                                 class="chat-textarea"
                                 :disabled="isLoading"
                             ></textarea>
+                            <!-- Paperclip button -->
+                            <button
+                                @click="fileInputRef.click()"
+                                :disabled="isLoading"
+                                class="chat-attach-btn"
+                                title="Vedhæft dokument (PDF, billede, TXT)"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                </svg>
+                            </button>
                             <button
                                 @click="sendMessage"
-                                :disabled="!message.trim() || isLoading"
+                                :disabled="(!message.trim() && !uploadFile) || isLoading"
                                 class="chat-send-btn"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

@@ -1,0 +1,277 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AppSetting;
+use App\Models\CaseModel;
+use App\Models\Conversation;
+use App\Models\Document;
+use App\Models\KnowledgeChunk;
+use App\Models\Task;
+use App\Models\User;
+use App\Services\KnowledgeService;
+use App\Services\NotificationService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class AdminController extends Controller
+{
+    private function baseProps(): array
+    {
+        $stats = [
+            'total_users'         => User::count(),
+            'users_today'         => User::whereDate('created_at', today())->count(),
+            'total_conversations' => CaseModel::count(),
+            'total_documents'     => Document::count(),
+            'total_tasks'         => Task::count(),
+            'ai_messages_total'   => (int) User::sum('ai_messages_used'),
+        ];
+
+        $plans = User::selectRaw('subscription_plan, count(*) as count')
+            ->groupBy('subscription_plan')
+            ->pluck('count', 'subscription_plan')
+            ->toArray();
+
+        foreach (['free', 'pro', 'business'] as $plan) {
+            $plans[$plan] = $plans[$plan] ?? 0;
+        }
+
+        $users = User::orderByDesc('created_at')
+            ->select('id', 'name', 'email', 'is_admin', 'subscription_plan',
+                     'ai_messages_used', 'ai_messages_limit', 'created_at', 'google_id')
+            ->paginate(50);
+
+        $knowledgeSources = KnowledgeChunk::selectRaw(
+            'source_url, source_title, category, count(*) as chunks, max(scraped_at) as scraped_at'
+        )->groupBy('source_url', 'source_title', 'category')
+         ->orderByDesc('scraped_at')
+         ->get();
+
+        // Hardcoded predefined sources with indexed status
+        $indexedUrls = $knowledgeSources->pluck('source_url')->toArray();
+        $predefinedSources = collect(KnowledgeService::getSources())->map(function ($src) use ($indexedUrls) {
+            $src['indexed'] = in_array($src['url'], $indexedUrls);
+            return $src;
+        })->values();
+
+        return [
+            'stats'              => $stats,
+            'plans'              => $plans,
+            'users'              => $users,
+            'knowledgeSources'   => $knowledgeSources,
+            'predefinedSources'  => $predefinedSources,
+        ];
+    }
+
+    public function index(): Response
+    {
+        return Inertia::render('Admin/Dashboard', $this->baseProps());
+    }
+
+    public function updatePlan(Request $request, User $user): RedirectResponse
+    {
+        $request->validate(['plan' => 'required|in:free,pro,business']);
+
+        $limits = ['free' => 50, 'pro' => 500, 'business' => 99999];
+
+        $user->update([
+            'subscription_plan' => $request->plan,
+            'ai_messages_limit' => $limits[$request->plan],
+        ]);
+
+        return back()->with('success', "Plan opdateret til {$request->plan}.");
+    }
+
+    public function destroyUser(User $user): RedirectResponse
+    {
+        abort_if($user->is_admin, 403, 'Kan ikke slette en admin-bruger.');
+        abort_if($user->id === auth()->id(), 403, 'Kan ikke slette dig selv.');
+
+        $user->delete();
+
+        return back()->with('success', 'Bruger slettet.');
+    }
+
+    public function sendNotification(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'target'  => 'required|in:all,user',
+            'user_id' => 'nullable|exists:users,id',
+            'title'   => 'required|max:120',
+            'message' => 'required|max:500',
+        ]);
+
+        if ($request->target === 'all') {
+            User::chunk(100, function ($users) use ($request) {
+                foreach ($users as $user) {
+                    NotificationService::create($user, 'admin', $request->title, $request->message);
+                }
+            });
+
+            return back()->with('success', 'Notifikation sendt til alle brugere.');
+        }
+
+        $user = User::findOrFail($request->user_id);
+        NotificationService::create($user, 'admin', $request->title, $request->message);
+
+        return back()->with('success', "Notifikation sendt til {$user->name}.");
+    }
+
+    /* ── Vidensbase (RAG) ──────────────────────────────────── */
+
+    public function indexPredefinedSource(Request $request): RedirectResponse
+    {
+        $request->validate(['url' => 'required|url', 'title' => 'required|string', 'category' => 'required|string']);
+
+        $service = new KnowledgeService();
+        $count = $service->processSource([
+            'url'      => $request->url,
+            'title'    => $request->title,
+            'category' => $request->category,
+        ]);
+
+        if ($count > 0) {
+            return back()->with('success', "{$count} chunks indekseret fra \"{$request->title}\".");
+        }
+
+        $alreadyExists = \App\Models\KnowledgeChunk::where('source_url', $request->url)->exists();
+        if ($alreadyExists) {
+            return back()->with('success', "\"{$request->title}\" er allerede indekseret – ingen ændringer.");
+        }
+
+        return back()->with('error', "Scraping fejlede for \"{$request->title}\". Siden blokerer muligvis bots. Prøv at uploade indholdet som .txt-fil i stedet.");
+    }
+
+    public function addKnowledgeUrl(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'url'      => 'required|url|max:500',
+            'title'    => 'required|string|max:200',
+            'category' => 'required|string|max:100',
+        ]);
+
+        $service = new KnowledgeService();
+        $count = $service->processSource([
+            'url'      => $request->url,
+            'title'    => $request->title,
+            'category' => $request->category,
+        ]);
+
+        if ($count > 0) {
+            return back()->with('success', "{$count} chunks tilføjet fra URL.");
+        }
+
+        $alreadyExists = \App\Models\KnowledgeChunk::where('source_url', $request->url)->exists();
+        if ($alreadyExists) {
+            return back()->with('success', "URL er allerede indekseret – ingen ændringer.");
+        }
+
+        return back()->with('error', "Scraping fejlede – siden blokerer muligvis bots eller indeholder ingen brugbar tekst. Prøv at uploade indholdet som .txt-fil.");
+    }
+
+    public function uploadKnowledgeDocument(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file'     => 'required|file|mimes:txt|max:10240',
+            'title'    => 'required|string|max:200',
+            'category' => 'required|string|max:100',
+        ]);
+
+        $text = file_get_contents($request->file('file')->getRealPath());
+        $filename = $request->file('file')->getClientOriginalName();
+        $sourceUrl = 'upload:/' . $filename;
+
+        $service = new KnowledgeService();
+        $chunks = $service->chunkText($text);
+
+        if (empty($chunks)) {
+            return back()->with('error', 'Dokumentet indeholder ingen brugbar tekst.');
+        }
+
+        $embeddings = $service->createEmbeddings(array_values($chunks));
+
+        foreach ($chunks as $i => $chunkText) {
+            KnowledgeChunk::create([
+                'source_url'   => $sourceUrl,
+                'source_title' => $request->title,
+                'content'      => $chunkText,
+                'embedding'    => $embeddings[$i] ?? null,
+                'category'     => $request->category,
+                'chunk_index'  => $i,
+                'token_count'  => $service->estimateTokens($chunkText),
+                'content_hash' => hash('sha256', $chunkText),
+                'scraped_at'   => now(),
+            ]);
+        }
+
+        return back()->with('success', count($chunks) . ' chunks gemt fra dokument.');
+    }
+
+    public function deleteKnowledgeSource(Request $request): RedirectResponse
+    {
+        $request->validate(['source_url' => 'required|string']);
+
+        $count = KnowledgeChunk::where('source_url', $request->source_url)->delete();
+
+        return back()->with('success', "{$count} chunks slettet.");
+    }
+
+    /* ── Brugerchat ─────────────────────────────────────────── */
+
+    public function userConversations(User $user): Response
+    {
+        $cases = CaseModel::where('user_id', $user->id)
+            ->with(['conversations' => function ($q) {
+                $q->orderBy('id')
+                  ->select('id', 'case_id', 'role', 'content', 'model_used', 'created_at');
+            }])
+            ->orderByDesc('updated_at')
+            ->get(['id', 'title', 'status', 'created_at']);
+
+        return Inertia::render('Admin/Dashboard', array_merge($this->baseProps(), [
+            'viewUser'  => $user->only('id', 'name', 'email'),
+            'userCases' => $cases,
+        ]));
+    }
+
+    /* ── API-indstillinger ──────────────────────────────────── */
+
+    public function settings(): Response
+    {
+        $settings = AppSetting::all()->map(function ($s) {
+            return [
+                'key'       => $s->key,
+                'is_secret' => $s->is_secret,
+                'is_set'    => !empty($s->value),
+            ];
+        })->keyBy('key');
+
+        return Inertia::render('Admin/Dashboard', array_merge($this->baseProps(), [
+            'appSettings' => $settings,
+        ]));
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $allowed = [
+            'stripe_key', 'stripe_secret', 'stripe_webhook_secret',
+            'google_client_id', 'google_client_secret',
+            'openai_api_key', 'anthropic_api_key', 'mistral_api_key',
+        ];
+
+        $request->validate(
+            collect($allowed)->mapWithKeys(fn($k) => [$k => 'nullable|string|max:500'])->toArray()
+        );
+
+        foreach ($allowed as $key) {
+            $value = $request->input($key);
+            if ($value !== null && $value !== '') {
+                AppSetting::set($key, $value);
+            }
+        }
+
+        return back()->with('success', 'API-indstillinger gemt.');
+    }
+}

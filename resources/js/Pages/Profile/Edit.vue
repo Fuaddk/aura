@@ -7,6 +7,7 @@ import ChatSidebar from '@/Components/ChatSidebar.vue';
 const props = defineProps({
     mustVerifyEmail: Boolean,
     status:          String,
+    twoFactor:       Object,
     usagePercent:    Number,
     messagesUsed:    Number,
     messagesLimit:   Number,
@@ -15,35 +16,27 @@ const props = defineProps({
     cases:           { type: Array, default: () => [] },
 });
 
-const page     = usePage();
-const authUser = computed(() => page.props.auth.user);
+const page       = usePage();
+const authUser   = computed(() => page.props.auth.user);
+const sidebarOpen = ref(true);
 
 const activeSection = ref('general');
 
 const navItems = [
-    {
-        id: 'general', label: 'Generelt',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 0 1 .75.75V4h7V2.75a.75.75 0 0 1 1.5 0V4h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18H4.75A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V2.75A.75.75 0 0 1 5.75 2Zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75Z" clip-rule="evenodd"/></svg>`,
-    },
-    {
-        id: 'account', label: 'Konto',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"/></svg>`,
-    },
-    {
-        id: 'subscription', label: 'Abonnement',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.5 4A1.5 1.5 0 0 0 1 5.5V6h18v-.5A1.5 1.5 0 0 0 17.5 4h-15ZM19 8.5H1v6A1.5 1.5 0 0 0 2.5 16h15a1.5 1.5 0 0 0 1.5-1.5v-6ZM3 13.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Zm4.75-.75a.75.75 0 0 0 0 1.5h3.5a.75.75 0 0 0 0-1.5h-3.5Z" clip-rule="evenodd"/></svg>`,
-    },
-    {
-        id: 'usage', label: 'Brug',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M15.5 2A1.5 1.5 0 0 0 14 3.5v13a1.5 1.5 0 0 0 3 0v-13A1.5 1.5 0 0 0 15.5 2ZM9.5 6A1.5 1.5 0 0 0 8 7.5v9a1.5 1.5 0 0 0 3 0v-9A1.5 1.5 0 0 0 9.5 6ZM3.5 10A1.5 1.5 0 0 0 2 11.5v5a1.5 1.5 0 0 0 3 0v-5A1.5 1.5 0 0 0 3.5 10Z"/></svg>`,
-    },
+    { id: 'general',      label: 'Generelt' },
+    { id: 'account',      label: 'Konto' },
+    { id: 'subscription', label: 'Fakturering' },
+    { id: 'security',     label: 'Sikkerhed' },
+    { id: 'usage',        label: 'Forbrug' },
 ];
 
 /* ── Forms ─────────────────────────────────────────────── */
 const profileForm = useForm({
-    name:  authUser.value.name  || '',
-    email: authUser.value.email || '',
-    phone: authUser.value.phone || '',
+    name:             authUser.value.name             || '',
+    display_name:     authUser.value.display_name     || '',
+    work_description: authUser.value.work_description || '',
+    preferences:      authUser.value.preferences      || '',
+    phone:            authUser.value.phone            || '',
 });
 
 const passwordForm = useForm({
@@ -62,29 +55,19 @@ const isPaidPlan     = computed(() => currentPlan.value !== 'free');
 
 const plans = [
     {
-        id:       'free',
-        name:     'Gratis',
-        price:    '0',
-        messages: '50 AI-beskeder/md.',
+        id: 'free', name: 'Gratis', price: '0', messages: '50 AI-beskeder/md.',
         features: ['50 AI-beskeder om måneden', '1 aktiv sag', 'Grundlæggende opgavestyring'],
-        color:    '#9ca3af',
+        color: '#9ca3af',
     },
     {
-        id:       'pro',
-        name:     'Pro',
-        price:    '99',
-        messages: '500 AI-beskeder/md.',
+        id: 'pro', name: 'Pro', price: '99', messages: '500 AI-beskeder/md.',
         features: ['500 AI-beskeder om måneden', 'Ubegrænset sager', 'Avancerede opgaver', 'Dokumentupload'],
-        color:    '#7E75CE',
-        popular:  true,
+        color: '#7E75CE', popular: true,
     },
     {
-        id:       'business',
-        name:     'Business',
-        price:    '299',
-        messages: 'Ubegrænset',
+        id: 'business', name: 'Business', price: '299', messages: 'Ubegrænset',
         features: ['Ubegrænset AI-beskeder', 'Ubegrænset sager', 'Prioritetssupport', 'API-adgang'],
-        color:    '#5BC4E8',
+        color: '#5BC4E8',
     },
 ];
 
@@ -112,6 +95,14 @@ const showDeletePw  = ref(false);
 const showDelete    = ref(false);
 
 /* ── Helpers ────────────────────────────────────────────── */
+const userDisplayId = computed(() => {
+    const id = authUser.value.id || 1;
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let seed = id;
+    const next = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return chars[seed % chars.length]; };
+    return `${next()}${next()}${next()}${next()}-${next()}${next()}${next()}${next()}-${next()}${next()}${next()}${next()}`;
+});
+
 const userInitials = computed(() => {
     const n = authUser.value.name || '';
     return n.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -120,10 +111,47 @@ const userInitials = computed(() => {
 const usageColor = computed(() => {
     if (props.usagePercent >= 90) return '#ef4444';
     if (props.usagePercent >= 70) return '#f59e0b';
-    return '#7E75CE';
+    return '#374151';
 });
 
 const planLabel = (id) => plans.find(p => p.id === id)?.name ?? id;
+
+/* ── Two-Factor Authentication ──────────────────────────── */
+const twoFactorEnabled = computed(() => !!authUser.value.two_factor_confirmed_at);
+const tfSetupStep      = ref('idle');
+const tfConfirmForm    = useForm({ code: '' });
+const tfDisableForm    = useForm({ password: '' });
+const tfRegenForm      = useForm({ password: '' });
+const showTfDisablePw  = ref(false);
+const showTfRegenPw    = ref(false);
+
+const enableTwoFactor = () => {
+    useForm({}).post(route('two-factor.enable'), {
+        preserveScroll: true,
+        onSuccess: () => { tfSetupStep.value = 'qr'; },
+    });
+};
+
+const confirmTwoFactor = () => {
+    tfConfirmForm.post(route('two-factor.confirm'), {
+        preserveScroll: true,
+        onSuccess: () => { tfSetupStep.value = 'recovery'; tfConfirmForm.reset(); },
+    });
+};
+
+const disableTwoFactor = () => {
+    tfDisableForm.post(route('two-factor.disable'), {
+        preserveScroll: true,
+        onSuccess: () => { tfSetupStep.value = 'idle'; tfDisableForm.reset(); },
+    });
+};
+
+const regenerateRecoveryCodes = () => {
+    tfRegenForm.post(route('two-factor.recovery-codes'), {
+        preserveScroll: true,
+        onSuccess: () => { tfSetupStep.value = 'recovery'; tfRegenForm.reset(); },
+    });
+};
 
 /* ── Extra usage toggle ─────────────────────────────────── */
 const extraUsageEnabled = ref(false);
@@ -145,366 +173,377 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 
     <ChatLayout>
     <div class="chat-container">
+        <ChatSidebar :cases="cases" :active-case="null" :open="sidebarOpen" @toggle="sidebarOpen = !sidebarOpen" />
 
-        <!-- ── Chat sidebar (uændret) ────────────────── -->
-        <ChatSidebar :cases="cases" :active-case="null" :open="true" />
-
-        <!-- ── Profilside ────────────────────────────── -->
         <div class="chat-main">
+            <!-- Topbar -->
             <div class="chat-topbar">
                 <h2 class="page-topbar-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="topbar-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
-                    Profil
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="topbar-icon">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                    Indstillinger
                 </h2>
             </div>
 
-            <main class="settings-main">
-            <div class="settings-layout">
+            <div class="page-scroll">
+                <div class="st-outer">
 
-                <!-- Nav-kort -->
-                <nav class="settings-nav">
-                    <div class="settings-nav-title">Mine indstillinger</div>
-                    <ul class="settings-nav-list">
-                        <li v-for="item in navItems" :key="item.id">
-                            <button
-                                @click="activeSection = item.id"
-                                :class="['settings-nav-item', activeSection === item.id && 'settings-nav-item-active']"
-                            >
-                                <span class="settings-nav-icon" v-html="item.icon"></span>
-                                {{ item.label }}
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
+                    <!-- ── Left nav ─────────────────────────── -->
+                    <nav class="st-nav">
+                        <button @click="activeSection = 'general'" :class="['st-nav-btn', { 'st-nav-btn-active': activeSection === 'general' }]">
+                            <svg class="st-nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                            Generelt
+                        </button>
+                        <button @click="activeSection = 'account'" :class="['st-nav-btn', { 'st-nav-btn-active': activeSection === 'account' }]">
+                            <svg class="st-nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.559.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.894.149c-.424.07-.764.383-.929.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                            Konto
+                        </button>
+                        <button @click="activeSection = 'subscription'" :class="['st-nav-btn', { 'st-nav-btn-active': activeSection === 'subscription' }]">
+                            <svg class="st-nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /></svg>
+                            Fakturering
+                        </button>
+                        <button @click="activeSection = 'security'" :class="['st-nav-btn', { 'st-nav-btn-active': activeSection === 'security' }]">
+                            <svg class="st-nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
+                            Sikkerhed
+                        </button>
+                        <button @click="activeSection = 'usage'" :class="['st-nav-btn', { 'st-nav-btn-active': activeSection === 'usage' }]">
+                            <svg class="st-nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+                            Forbrug
+                        </button>
+                    </nav>
 
-                <!-- Indhold -->
-                <div class="settings-content">
+                    <!-- ── Content ──────────────────────────── -->
+                    <div class="st-content">
 
-                <!-- Status banners -->
-                <div v-if="status === 'profile-updated'"      class="s-banner s-banner-green">Profil opdateret.</div>
-                <div v-if="status === 'password-updated'"     class="s-banner s-banner-green">Adgangskode opdateret.</div>
-                <div v-if="status === 'subscription-updated'"   class="s-banner s-banner-purple">Abonnement opdateret til {{ planLabel(currentPlan) }}.</div>
-                <div v-if="status === 'subscription-cancelled'" class="s-banner s-banner-green">Dit abonnement er annulleret. Du er nu på Gratis-planen.</div>
+                        <!-- Banners -->
+                        <div v-if="status === 'profile-updated'"        class="st-banner st-banner-green">Profil opdateret.</div>
+                        <div v-if="status === 'password-updated'"       class="st-banner st-banner-green">Adgangskode opdateret.</div>
+                        <div v-if="status === 'subscription-updated'"   class="st-banner st-banner-purple">Abonnement opdateret til {{ planLabel(currentPlan) }}.</div>
+                        <div v-if="status === 'subscription-cancelled'" class="st-banner st-banner-green">Dit abonnement er annulleret. Du er nu på Gratis-planen.</div>
 
-                <!-- ═══════════════════════════════
-                     GENERELT
-                ═══════════════════════════════ -->
-                <template v-if="activeSection === 'general'">
-                    <h2 class="s-section-title">Profil</h2>
+                        <!-- ══════════════ GENERELT ══════════════ -->
+                        <template v-if="activeSection === 'general'">
 
-                    <div class="s-block">
-                        <form @submit.prevent="submitProfile" class="s-form">
-                            <div class="s-row">
-                                <label class="s-label">Fulde navn</label>
-                                <div class="s-name-row">
-                                    <div class="s-avatar">{{ userInitials }}</div>
-                                    <input v-model="profileForm.name" type="text" class="s-input" :class="{ 's-input-err': profileForm.errors.name }" autocomplete="name" required />
-                                </div>
-                                <p v-if="profileForm.errors.name" class="s-err">{{ profileForm.errors.name }}</p>
-                            </div>
-
-                            <div class="s-divider"></div>
-
-                            <div class="s-row">
-                                <label class="s-label">Email</label>
-                                <input v-model="profileForm.email" type="email" class="s-input" :class="{ 's-input-err': profileForm.errors.email }" autocomplete="email" required />
-                                <p v-if="profileForm.errors.email" class="s-err">{{ profileForm.errors.email }}</p>
-                                <div v-if="mustVerifyEmail && !authUser.email_verified_at" class="s-verify-notice">
-                                    Email ikke bekræftet.
-                                    <Link :href="route('verification.send')" method="post" as="button" class="s-link">Send bekræftelsesemail</Link>
+                            <!-- User avatar + name -->
+                            <div class="st-profile-hero">
+                                <div class="st-avatar">{{ userInitials }}</div>
+                                <div>
+                                    <div class="st-profile-name">{{ authUser.name }}</div>
+                                    <div class="st-profile-email">{{ authUser.email }}</div>
+                                    <code class="st-profile-id">{{ userDisplayId }}</code>
                                 </div>
                             </div>
 
-                            <div class="s-divider"></div>
+                            <div class="st-divider"></div>
 
-                            <div class="s-row">
-                                <label class="s-label">Telefon</label>
-                                <input v-model="profileForm.phone" type="tel" class="s-input" placeholder="+45 00 00 00 00" autocomplete="tel" />
-                            </div>
+                            <h3 class="st-heading">Profil</h3>
+                            <form @submit.prevent="submitProfile" class="st-form">
 
-                            <div class="s-divider"></div>
+                                <!-- Full name + Display name side by side -->
+                                <div class="st-field-pair">
+                                    <div class="st-field-block">
+                                        <label class="st-label-block">Fulde navn</label>
+                                        <input v-model="profileForm.name" type="text" class="st-input" :class="{ 'st-input-err': profileForm.errors.name }" autocomplete="name" required placeholder="Dit fulde navn" />
+                                        <p v-if="profileForm.errors.name" class="st-err">{{ profileForm.errors.name }}</p>
+                                    </div>
+                                    <div class="st-field-block">
+                                        <label class="st-label-block">Hvad skal Aura kalde dig?</label>
+                                        <input v-model="profileForm.display_name" type="text" class="st-input" placeholder="fx. Fuad" />
+                                    </div>
+                                </div>
 
-                            <div class="s-row s-row-action">
-                                <button type="submit" class="s-btn" :disabled="profileForm.processing">
-                                    <span v-if="!profileForm.processing">Gem</span>
-                                    <span v-else class="s-btn-loading"><span class="s-spin"></span>Gemmer…</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </template>
+                                <!-- Work description -->
+                                <div class="st-field-block" style="margin-top:1rem">
+                                    <label class="st-label-block">Hvad beskriver dig bedst som person?</label>
+                                    <input v-model="profileForm.work_description" type="text" class="st-input" placeholder="fx. Empatisk, direkte, analytisk, foretrækker korte svar..." />
+                                </div>
 
-                <!-- ═══════════════════════════════
-                     KONTO
-                ═══════════════════════════════ -->
-                <template v-if="activeSection === 'account'">
-                    <h2 class="s-section-title">Konto</h2>
+                                <div class="st-divider" style="margin:1.5rem 0 1.25rem"></div>
 
-                    <div class="s-block">
-                        <h3 class="s-block-title">Skift adgangskode</h3>
-                        <form @submit.prevent="submitPassword" class="s-form">
-                            <div class="s-row">
-                                <label class="s-label">Nuværende adgangskode</label>
-                                <div class="s-input-wrap">
-                                    <input v-model="passwordForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="s-input" :class="{ 's-input-err': passwordForm.errors.current_password }" autocomplete="current-password" placeholder="••••••••" />
-                                    <button type="button" class="s-eye" @click="showCurrentPw = !showCurrentPw" tabindex="-1">
-                                        <svg v-if="!showCurrentPw" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
-                                        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" /><path d="m10.748 13.93 2.523 2.523a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" /></svg>
+                                <!-- Personal preferences -->
+                                <div class="st-field-block">
+                                    <label class="st-label-block" style="font-weight:500;color:#111827">Hvilke personlige præferencer skal Aura tage hensyn til i sine svar?</label>
+                                    <p class="st-muted" style="margin-bottom:0.5rem">Dine præferencer gælder for alle samtaler, inden for Auras retningslinjer.</p>
+                                    <textarea v-model="profileForm.preferences" class="st-input st-textarea" rows="4" placeholder="fx. Brug dansk, vær kortfattet, undgå juridisk jargon..."></textarea>
+                                </div>
+
+                                <div class="st-form-actions">
+                                    <button type="submit" class="st-btn" :disabled="profileForm.processing">
+                                        <span v-if="!profileForm.processing">Gem ændringer</span>
+                                        <span v-else class="st-btn-loading"><span class="st-spin st-spin-dark"></span>Gemmer…</span>
                                     </button>
                                 </div>
-                                <p v-if="passwordForm.errors.current_password" class="s-err">{{ passwordForm.errors.current_password }}</p>
-                            </div>
+                            </form>
+                        </template>
 
-                            <div class="s-divider"></div>
+                        <!-- ══════════════ KONTO ══════════════ -->
+                        <template v-if="activeSection === 'account'">
+                            <h3 class="st-heading">Konto</h3>
 
-                            <div class="s-row">
-                                <label class="s-label">Ny adgangskode</label>
-                                <div class="s-input-wrap">
-                                    <input v-model="passwordForm.password" :type="showNewPw ? 'text' : 'password'" class="s-input" :class="{ 's-input-err': passwordForm.errors.password }" autocomplete="new-password" placeholder="••••••••" />
-                                    <button type="button" class="s-eye" @click="showNewPw = !showNewPw" tabindex="-1">
-                                        <svg v-if="!showNewPw" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
-                                        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" /><path d="m10.748 13.93 2.523 2.523a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" /></svg>
+                            <!-- Skift adgangskode -->
+                            <h4 class="st-subheading">Skift adgangskode</h4>
+                            <form @submit.prevent="submitPassword">
+                                <div class="st-field">
+                                    <label class="st-label">Nuværende adgangskode</label>
+                                    <div class="st-input-wrap">
+                                        <input v-model="passwordForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="st-input" :class="{ 'st-input-err': passwordForm.errors.current_password }" autocomplete="current-password" placeholder="••••••••" />
+                                        <button type="button" class="st-eye" @click="showCurrentPw = !showCurrentPw" tabindex="-1">
+                                            <svg v-if="!showCurrentPw" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
+                                            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" /><path d="m10.748 13.93 2.523 2.523a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" /></svg>
+                                        </button>
+                                    </div>
+                                    <p v-if="passwordForm.errors.current_password" class="st-err">{{ passwordForm.errors.current_password }}</p>
+                                </div>
+                                <div class="st-field">
+                                    <label class="st-label">Ny adgangskode</label>
+                                    <div class="st-input-wrap">
+                                        <input v-model="passwordForm.password" :type="showNewPw ? 'text' : 'password'" class="st-input" :class="{ 'st-input-err': passwordForm.errors.password }" autocomplete="new-password" placeholder="••••••••" />
+                                        <button type="button" class="st-eye" @click="showNewPw = !showNewPw" tabindex="-1">
+                                            <svg v-if="!showNewPw" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
+                                            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" /><path d="m10.748 13.93 2.523 2.523a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" /></svg>
+                                        </button>
+                                    </div>
+                                    <p v-if="passwordForm.errors.password" class="st-err">{{ passwordForm.errors.password }}</p>
+                                </div>
+                                <div class="st-field">
+                                    <label class="st-label">Bekræft ny adgangskode</label>
+                                    <div class="st-input-wrap">
+                                        <input v-model="passwordForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="st-input" autocomplete="new-password" placeholder="••••••••" />
+                                        <button type="button" class="st-eye" @click="showConfirmPw = !showConfirmPw" tabindex="-1">
+                                            <svg v-if="!showConfirmPw" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
+                                            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" /><path d="m10.748 13.93 2.523 2.523a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style="margin-top:1.25rem">
+                                    <button type="submit" class="st-btn" :disabled="passwordForm.processing">
+                                        <span v-if="!passwordForm.processing">Opdater adgangskode</span>
+                                        <span v-else class="st-btn-loading"><span class="st-spin"></span>Opdaterer…</span>
                                     </button>
                                 </div>
-                                <p v-if="passwordForm.errors.password" class="s-err">{{ passwordForm.errors.password }}</p>
+                            </form>
+
+                            <div class="st-divider" style="margin-top:2rem"></div>
+
+                            <!-- Slet konto -->
+                            <h4 class="st-subheading">Vil du gerne slette din konto?</h4>
+                            <p class="st-muted">Alle dine data slettes permanent og kan ikke gendannes.</p>
+                            <div v-if="!showDelete" style="margin-top:0.875rem">
+                                <button @click="showDelete = true" class="st-btn st-btn-danger">Slet konto</button>
                             </div>
-
-                            <div class="s-divider"></div>
-
-                            <div class="s-row">
-                                <label class="s-label">Bekræft ny adgangskode</label>
-                                <div class="s-input-wrap">
-                                    <input v-model="passwordForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="s-input" autocomplete="new-password" placeholder="••••••••" />
-                                    <button type="button" class="s-eye" @click="showConfirmPw = !showConfirmPw" tabindex="-1">
-                                        <svg v-if="!showConfirmPw" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
-                                        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" /><path d="m10.748 13.93 2.523 2.523a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" /></svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="s-divider"></div>
-
-                            <div class="s-row s-row-action">
-                                <button type="submit" class="s-btn" :disabled="passwordForm.processing">
-                                    <span v-if="!passwordForm.processing">Opdater adgangskode</span>
-                                    <span v-else class="s-btn-loading"><span class="s-spin"></span>Opdaterer…</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Delete account -->
-                    <div class="s-block s-block-danger">
-                        <h3 class="s-block-title s-block-title-danger">Slet konto</h3>
-                        <p class="s-block-desc">Alle dine data slettes permanent og kan ikke gendannes.</p>
-                        <button v-if="!showDelete" @click="showDelete = true" class="s-btn s-btn-danger" style="margin:0.75rem 1.25rem 1rem">Slet min konto</button>
-                        <form v-else @submit.prevent="submitDelete" class="s-form">
-                            <div class="s-row">
-                                <div class="s-input-wrap">
-                                    <input v-model="deleteForm.password" :type="showDeletePw ? 'text' : 'password'" class="s-input" placeholder="Bekræft med adgangskode" autocomplete="current-password" />
-                                    <button type="button" class="s-eye" @click="showDeletePw = !showDeletePw" tabindex="-1">
+                            <div v-else style="margin-top:0.875rem; display:flex; flex-direction:column; gap:0.75rem; max-width:22rem">
+                                <div class="st-input-wrap">
+                                    <input v-model="deleteForm.password" :type="showDeletePw ? 'text' : 'password'" class="st-input" placeholder="Bekræft med adgangskode" autocomplete="current-password" />
+                                    <button type="button" class="st-eye" @click="showDeletePw = !showDeletePw" tabindex="-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg>
                                     </button>
                                 </div>
-                                <p v-if="deleteForm.errors.password" class="s-err">{{ deleteForm.errors.password }}</p>
-                                <div class="s-btn-row">
-                                    <button type="submit" class="s-btn s-btn-danger" :disabled="deleteForm.processing">Slet permanent</button>
-                                    <button type="button" @click="showDelete = false" class="s-btn s-btn-ghost">Annuller</button>
+                                <p v-if="deleteForm.errors.password" class="st-err">{{ deleteForm.errors.password }}</p>
+                                <div style="display:flex; gap:0.75rem">
+                                    <button @click="submitDelete" class="st-btn st-btn-danger" :disabled="deleteForm.processing">Slet permanent</button>
+                                    <button type="button" @click="showDelete = false" class="st-btn st-btn-ghost">Annuller</button>
                                 </div>
                             </div>
-                        </form>
-                    </div>
-                </template>
+                        </template>
 
-                <!-- ═══════════════════════════════
-                     ABONNEMENT
-                ═══════════════════════════════ -->
-                <template v-if="activeSection === 'subscription'">
-                    <h2 class="s-section-title">Abonnement</h2>
+                        <!-- ══════════════ FAKTURERING ══════════════ -->
+                        <template v-if="activeSection === 'subscription'">
 
-                    <div class="s-block">
-                        <div class="plan-header-row">
-                            <p class="s-block-desc" style="padding-top:1rem;margin-bottom:0">
-                                Du er på <strong>{{ planLabel(currentPlan) }}</strong>-planen.
-                            </p>
-                            <a v-if="isPaidPlan" :href="route('subscription.portal')" class="s-btn s-btn-outline plan-portal-btn">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:0.875rem;height:0.875rem"><path fill-rule="evenodd" d="M2.5 4A1.5 1.5 0 0 0 1 5.5V6h18v-.5A1.5 1.5 0 0 0 17.5 4h-15ZM19 8.5H1v6A1.5 1.5 0 0 0 2.5 16h15a1.5 1.5 0 0 0 1.5-1.5v-6ZM3 13.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Zm4.75-.75a.75.75 0 0 0 0 1.5h3.5a.75.75 0 0 0 0-1.5h-3.5Z" clip-rule="evenodd" /></svg>
-                                Fakturaer &amp; betaling
-                            </a>
-                        </div>
-                        <div class="plan-grid">
-                            <div
-                                v-for="plan in plans"
-                                :key="plan.id"
-                                class="plan-card"
-                                :class="{ 'plan-card-active': currentPlan === plan.id }"
-                                :style="{ '--accent': plan.color }"
-                            >
-                                <div v-if="plan.popular" class="plan-badge">Mest populær</div>
-                                <div class="plan-name">{{ plan.name }}</div>
-                                <div class="plan-price">
-                                    <span class="plan-price-num">{{ plan.price }}</span>
-                                    <span class="plan-price-unit"> kr/md.</span>
+                            <!-- Plan header -->
+                            <div class="st-bill-row">
+                                <div class="st-bill-plan-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>
                                 </div>
-                                <div class="plan-msgs">{{ plan.messages }}</div>
-                                <ul class="plan-feats">
-                                    <li v-for="f in plan.features" :key="f">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" /></svg>
-                                        {{ f }}
-                                    </li>
-                                </ul>
-                                <div class="plan-footer">
-                                    <!-- Nuværende gratis plan -->
-                                    <span v-if="currentPlan === plan.id && plan.id === 'free'" class="plan-current">Nuværende plan</span>
+                                <div class="st-bill-plan-info">
+                                    <div class="st-bill-plan-name">{{ planLabel(currentPlan) }}-plan</div>
+                                    <div v-if="isPaidPlan" class="st-muted">Månedlig · fornyes automatisk den {{ nextResetDate }}.</div>
+                                    <div v-else class="st-muted">Opgrader for at få flere AI-beskeder.</div>
+                                </div>
+                                <button v-if="!isPaidPlan" @click="startCheckout('pro')" class="st-btn" :disabled="checkoutForm.processing">
+                                    <span v-if="checkoutForm.processing"><span class="st-spin st-spin-dark"></span>Omdirigerer…</span>
+                                    <span v-else>Opgrader</span>
+                                </button>
+                                <a v-else :href="route('subscription.portal')" class="st-btn">Juster plan</a>
+                            </div>
 
-                                    <!-- Nuværende betalt plan: vis administrér-knap -->
-                                    <span v-else-if="currentPlan === plan.id && plan.id !== 'free'" class="plan-current">
-                                        Nuværende plan
-                                    </span>
+                            <div class="st-divider"></div>
 
-                                    <!-- Gratis plan når man er på betalt: vis annuller -->
-                                    <button
-                                        v-else-if="plan.id === 'free' && isPaidPlan"
-                                        @click="cancelSubscription"
-                                        class="plan-cancel-btn"
-                                        :disabled="cancelForm.processing"
-                                    >
-                                        <span v-if="cancelForm.processing"><span class="s-spin s-spin-dark"></span>Annullerer…</span>
-                                        <span v-else>Annuller abonnement</span>
+                            <!-- Payment -->
+                            <div class="st-bill-section">Betaling</div>
+                            <div class="st-bill-row">
+                                <div class="st-bill-card-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /></svg>
+                                </div>
+                                <div class="st-bill-card-info">
+                                    <div v-if="isPaidPlan" class="st-muted">Betalingskort og fakturaer administreres via Stripe</div>
+                                    <div v-else class="st-muted">Ingen betalingsmetode registreret</div>
+                                </div>
+                                <a v-if="isPaidPlan" :href="route('subscription.portal')" class="st-btn">Opdater</a>
+                            </div>
+
+                            <template v-if="isPaidPlan">
+                            <div class="st-divider"></div>
+
+                            <!-- Extra usage — kun for betalende brugere -->
+                            <div class="st-bill-section">Extra forbrug</div>
+                            <p class="st-muted" style="margin-bottom:1.25rem">Køb extra forbrug for at fortsætte brugen af Aura, hvis du rammer din grænse.</p>
+
+                            <div class="st-bill-row" style="margin-bottom:0.875rem">
+                                <div>
+                                    <div class="st-bill-amount">{{ walletBalance }} DKK</div>
+                                    <div class="st-muted">Aktuel saldo</div>
+                                </div>
+                                <button class="st-btn">Køb mere</button>
+                            </div>
+
+                            </template>
+
+                            <div class="st-divider"></div>
+
+                            <!-- Invoices -->
+                            <div class="st-bill-section">Fakturaer</div>
+                            <div class="st-bill-row">
+                                <div class="st-muted">Se og download dine fakturaer via betalingsportalen.</div>
+                                <a v-if="isPaidPlan" :href="route('subscription.portal')" class="st-btn">Se fakturaer</a>
+                            </div>
+
+                            <div v-if="isPaidPlan">
+                                <div class="st-divider"></div>
+                                <!-- Cancellation -->
+                                <div class="st-bill-section">Annullering</div>
+                                <div class="st-bill-row">
+                                    <div class="st-muted">Annuller abonnement</div>
+                                    <button @click="cancelSubscription" class="st-btn st-btn-danger" :disabled="cancelForm.processing">
+                                        <span v-if="cancelForm.processing"><span class="st-spin st-spin-dark"></span>Annullerer…</span>
+                                        <span v-else>Annuller</span>
                                     </button>
-
-                                    <!-- Opgrader til betalt plan -->
-                                    <button
-                                        v-else
-                                        @click="startCheckout(plan.id)"
-                                        class="plan-pick-btn"
-                                        :disabled="checkoutForm.processing"
-                                        :style="{ '--accent': plan.color }"
-                                    >
-                                        <span v-if="checkoutForm.processing && checkoutForm.plan === plan.id">
-                                            <span class="s-spin" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff"></span>Omdirigerer…
-                                        </span>
-                                        <span v-else>Vælg plan →</span>
-                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </template>
+                        </template>
 
-                <!-- ═══════════════════════════════
-                     BRUG
-                ═══════════════════════════════ -->
-                <template v-if="activeSection === 'usage'">
-                    <h2 class="s-section-title">Brug</h2>
+                        <!-- ══════════════ SIKKERHED ══════════════ -->
+                        <template v-if="activeSection === 'security'">
+                            <div v-if="status === 'two-factor-disabled'" class="st-banner st-banner-green">Totrinsgodkendelse er deaktiveret.</div>
 
-                    <!-- Plan forbrug -->
-                    <div class="s-block">
-                        <div class="usage-block-title">Plan forbrug</div>
+                            <h3 class="st-heading">Sikkerhed</h3>
 
-                        <div class="usage-row">
-                            <div class="usage-row-left">
-                                <div class="usage-row-name">AI-beskeder</div>
-                                <div class="usage-row-sub">Nulstilles {{ nextResetDate }}</div>
+                            <div class="st-2fa-header">
+                                <div class="st-2fa-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clip-rule="evenodd" /></svg>
+                                </div>
+                                <div class="st-2fa-info">
+                                    <div class="st-2fa-title">Totrinsgodkendelse (2FA)</div>
+                                    <div class="st-muted">Tilføj et ekstra lag sikkerhed med Google Authenticator.</div>
+                                </div>
+                                <span v-if="twoFactorEnabled" class="st-badge st-badge-green">Aktiv</span>
+                                <span v-else class="st-badge st-badge-red">Ikke aktiv</span>
                             </div>
-                            <div class="usage-bar-wrap">
-                                <div class="usage-track">
-                                    <div class="usage-fill" :style="{ width: usagePercent + '%', background: usageColor }"></div>
+
+                            <div class="st-divider"></div>
+
+                            <div v-if="!twoFactorEnabled && tfSetupStep === 'idle'">
+                                <p class="st-muted" style="margin-bottom:1rem">Når totrinsgodkendelse er aktiveret, skal du indtaste en engangskode fra din Google Authenticator-app, når du logger ind.</p>
+                                <button @click="enableTwoFactor" class="st-btn">Aktivér totrinsgodkendelse</button>
+                            </div>
+
+                            <div v-if="!twoFactorEnabled && tfSetupStep === 'qr' && twoFactor?.qrCodeSvg">
+                                <p class="st-muted" style="margin-bottom:1rem">Scan QR-koden med Google Authenticator og indtast den 6-cifrede kode for at bekræfte.</p>
+                                <div class="st-qr" v-html="twoFactor.qrCodeSvg"></div>
+                                <div class="st-secret">
+                                    <span class="st-muted">Hemmelig nøgle:</span>
+                                    <code class="st-code">{{ twoFactor.secret }}</code>
+                                </div>
+                                <form @submit.prevent="confirmTwoFactor" style="display:flex;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;margin-top:1rem">
+                                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="tfConfirmForm.code" class="st-input st-code-input" :class="{ 'st-input-err': tfConfirmForm.errors.code }" placeholder="000000" autocomplete="one-time-code" />
+                                    <button type="submit" class="st-btn" :disabled="tfConfirmForm.processing">Bekræft</button>
+                                    <p v-if="tfConfirmForm.errors.code" class="st-err">{{ tfConfirmForm.errors.code }}</p>
+                                </form>
+                            </div>
+
+                            <div v-if="tfSetupStep === 'recovery' && twoFactor?.recoveryCodes">
+                                <div class="st-notice st-notice-warn" style="margin-bottom:1rem">Gem disse gendannelseskoder et sikkert sted. Hver kode kan kun bruges én gang.</div>
+                                <div class="st-codes-grid">
+                                    <code v-for="code in twoFactor.recoveryCodes" :key="code" class="st-code st-code-block">{{ code }}</code>
+                                </div>
+                                <button @click="tfSetupStep = 'idle'" class="st-btn" style="margin-top:1rem">Forstået, gå videre</button>
+                            </div>
+
+                            <div v-if="twoFactorEnabled && tfSetupStep !== 'recovery'">
+                                <p class="st-muted" style="margin-bottom:1.25rem">Totrinsgodkendelse er aktiv.</p>
+
+                                <h4 class="st-subheading">Generer nye gendannelseskoder</h4>
+                                <form @submit.prevent="regenerateRecoveryCodes" style="display:flex;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem">
+                                    <div class="st-input-wrap" style="width:14rem">
+                                        <input v-model="tfRegenForm.password" :type="showTfRegenPw ? 'text' : 'password'" class="st-input" placeholder="Adgangskode" autocomplete="current-password" />
+                                        <button type="button" class="st-eye" @click="showTfRegenPw = !showTfRegenPw" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg></button>
+                                    </div>
+                                    <button type="submit" class="st-btn st-btn-outline" :disabled="tfRegenForm.processing">Generer</button>
+                                    <p v-if="tfRegenForm.errors.password" class="st-err">{{ tfRegenForm.errors.password }}</p>
+                                </form>
+
+                                <div class="st-divider"></div>
+                                <h4 class="st-subheading" style="color:#dc2626">Deaktivér totrinsgodkendelse</h4>
+                                <form @submit.prevent="disableTwoFactor" style="display:flex;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;margin-top:0.875rem">
+                                    <div class="st-input-wrap" style="width:14rem">
+                                        <input v-model="tfDisableForm.password" :type="showTfDisablePw ? 'text' : 'password'" class="st-input" placeholder="Adgangskode" autocomplete="current-password" />
+                                        <button type="button" class="st-eye" @click="showTfDisablePw = !showTfDisablePw" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /><path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clip-rule="evenodd" /></svg></button>
+                                    </div>
+                                    <button type="submit" class="st-btn st-btn-danger" :disabled="tfDisableForm.processing">Deaktivér</button>
+                                    <p v-if="tfDisableForm.errors.password" class="st-err">{{ tfDisableForm.errors.password }}</p>
+                                </form>
+                            </div>
+                        </template>
+
+                        <!-- ══════════════ FORBRUG ══════════════ -->
+                        <template v-if="activeSection === 'usage'">
+                            <h3 class="st-heading">Planbegrænsninger</h3>
+
+                            <!-- Main usage bar -->
+                            <div class="st-usage-item">
+                                <div class="st-usage-top">
+                                    <div>
+                                        <div class="st-usage-name">AI-beskeder</div>
+                                        <div class="st-muted" style="margin-top:0.125rem;font-size:0.8125rem">Nulstilles {{ nextResetDate }}</div>
+                                    </div>
+                                    <span class="st-usage-pct" :style="{ color: usageColor }">{{ usagePercent }}% brugt</span>
+                                </div>
+                                <div class="st-usage-track">
+                                    <div class="st-usage-fill" :style="{ width: Math.min(usagePercent, 100) + '%', background: usageColor }"></div>
                                 </div>
                             </div>
-                            <div class="usage-pct-label" :style="{ color: usageColor }">{{ usagePercent }}% brugt</div>
-                        </div>
 
-                        <div v-if="usagePercent >= 80" class="usage-warn">
-                            Du nærmer dig din grænse.
-                            <button @click="activeSection='subscription'" class="s-link">Opgrader plan →</button>
-                        </div>
-
-                        <div class="s-divider" style="margin:0.75rem 0"></div>
-
-                        <div class="usage-stats">
-                            <div class="usage-stat">
-                                <div class="usage-stat-num">{{ messagesUsed }}<span v-if="messagesLimit < 999999">/{{ messagesLimit }}</span></div>
-                                <div class="usage-stat-label">Beskeder brugt</div>
+                            <div v-if="usagePercent >= 80" class="st-notice" style="margin:0.75rem 0 0">
+                                Du nærmer dig din grænse.
+                                <button @click="activeSection = 'subscription'" class="st-link">Opgrader plan →</button>
                             </div>
-                            <div class="usage-stat">
-                                <div class="usage-stat-num">{{ casesCount }}</div>
-                                <div class="usage-stat-label">Sager</div>
-                            </div>
-                            <div class="usage-stat">
-                                <div class="usage-stat-num">{{ tasksCount }}</div>
-                                <div class="usage-stat-label">Opgaver</div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Extra forbrug -->
-                    <div class="s-block">
-                        <div class="usage-block-title">Extra forbrug</div>
+                            <div class="st-divider"></div>
 
-                        <div class="usage-row usage-toggle-row">
-                            <div class="usage-row-left">
-                                <div class="usage-row-name">Slå extra forbrug til</div>
-                                <div class="usage-row-sub">Fortsæt brugen af Aura hvis du rammer din grænse</div>
-                            </div>
-                            <button
-                                @click="extraUsageEnabled = !extraUsageEnabled"
-                                :class="['usage-toggle', extraUsageEnabled && 'usage-toggle-on']"
-                                role="switch"
-                                :aria-checked="extraUsageEnabled"
-                            >
-                                <span class="usage-toggle-thumb"></span>
-                            </button>
-                        </div>
+                            <!-- Extra usage -->
+                            <h3 class="st-heading">Extra forbrug</h3>
 
-                        <div class="s-divider" style="margin:0"></div>
-
-                        <div class="usage-row">
-                            <div class="usage-row-left">
-                                <div class="usage-row-name">0,00 kr brugt</div>
-                                <div class="usage-row-sub">Nulstilles {{ nextResetDate }}</div>
-                            </div>
-                            <div class="usage-bar-wrap">
-                                <div class="usage-track">
-                                    <div class="usage-fill" style="width:0%;background:#7E75CE"></div>
+                            <div class="st-extra-row">
+                                <div>
+                                    <div class="st-usage-name">Slå extra forbrug til for at fortsætte brugen af Aura, hvis du rammer din grænse.</div>
                                 </div>
+                                <button @click="extraUsageEnabled = !extraUsageEnabled" :class="['st-toggle', extraUsageEnabled && 'st-toggle-on']" role="switch" :aria-checked="extraUsageEnabled">
+                                    <span class="st-toggle-thumb"></span>
+                                </button>
                             </div>
-                            <div class="usage-pct-label" style="color:#9ca3af">0% brugt</div>
-                        </div>
 
-                        <div class="s-divider" style="margin:0"></div>
-
-                        <div class="usage-row s-row-between" style="flex-direction:row;align-items:center">
-                            <div>
-                                <div class="usage-row-name">
-                                    Månedlig forbrugsgrænse
-                                    <span class="usage-info-chip">Ikke sat</span>
-                                </div>
-                                <div class="usage-row-sub">Maks. ekstra forbrug pr. måned</div>
+                            <div class="st-extra-info-row" style="margin-top:1rem">
+                                <span class="st-usage-name">{{ walletBalance }} DKK</span>
+                                <span class="st-muted">Aktuel saldo · <span style="color:#ef4444">Auto-genopfyldning slået fra</span></span>
                             </div>
-                            <button class="s-btn s-btn-outline" disabled>Juster grænse</button>
-                        </div>
+                            <button class="st-btn st-btn-outline" style="margin-top:0.875rem" :disabled="!extraUsageEnabled">Køb mere</button>
+                        </template>
 
-                        <div class="s-divider" style="margin:0"></div>
-
-                        <div class="usage-row s-row-between" style="flex-direction:row;align-items:center">
-                            <div>
-                                <div class="usage-row-name">{{ walletBalance }} DKK</div>
-                                <div class="usage-row-sub">
-                                    Aktuel saldo
-                                    <span class="usage-autoreload-off">· Auto-genopfyldning slået fra</span>
-                                </div>
-                            </div>
-                            <button class="s-btn" disabled>Køb mere</button>
-                        </div>
-                    </div>
-                </template>
-
-                </div>
-            </div>
-            </main>
-        </div>
-
+                    </div><!-- st-content -->
+                </div><!-- st-outer -->
+            </div><!-- page-scroll -->
+        </div><!-- chat-main -->
     </div><!-- chat-container -->
     </ChatLayout>
 </template>
@@ -512,324 +551,386 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 <style scoped>
 *, *::before, *::after { box-sizing: border-box; }
 
-/* ── Scrollbart indholdsområde under topbaren ─────────────── */
-.settings-main {
-    flex: 1;
-    min-width: 0;
-    overflow-y: auto;
-    background: #fff;
-    padding: 1.5rem 2rem;
+/* ── Layout ──────────────────────────────────────────────── */
+.st-outer {
+    display: flex;
+    min-height: 100%;
     font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Indre layout: nav-kort + indhold side om side */
-.settings-layout {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.5rem;
-    max-width: 64rem;
-}
-
-/* ── Nav-kort ─────────────────────────────────────────────── */
-.settings-nav {
+/* ── Left nav ────────────────────────────────────────────── */
+.st-nav {
     width: 13.5rem;
     flex-shrink: 0;
+    padding: 2rem 1rem;
     background: #fff;
-    border-radius: 0.875rem;
-    padding: 0.625rem 0.5rem;
-    border: 1px solid #e9eaec;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-    position: sticky;
-    top: 0;
-}
-
-.settings-nav-title {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: #b0b7c3;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 0.375rem 0.75rem 0.5rem;
-}
-
-.settings-nav-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
 }
 
-.settings-nav-item {
+.st-nav-title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 1.25rem;
+    padding: 0 0.5rem;
+}
+
+.st-nav-btn {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.5rem;
     width: 100%;
     text-align: left;
-    padding: 0.5625rem 0.75rem;
-    font-size: 0.875rem;
-    color: #6b7280;
-    background: transparent;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    background: #fff;
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
-    line-height: 1.3;
 }
-.settings-nav-item:hover { background: #f5f5f7; color: #1a1a2e; }
-.settings-nav-item-active {
-    background: #ede9fb;
-    color: #5b45c9;
-    font-weight: 600;
+.st-nav-icon { width: 1rem; height: 1rem; flex-shrink: 0; }
+.st-nav-btn:hover { background: #f3f4f6; color: #111827; }
+.st-nav-btn-active {
+    background: #f3f4f6;
+    color: #111827;
+    font-weight: 500;
 }
-.settings-nav-item-active .settings-nav-icon { color: #7E75CE; }
+.st-nav-btn-active:hover { background: #f3f4f6; color: #111827; }
 
-.settings-nav-icon { display: flex; flex-shrink: 0; color: #9ca3af; transition: color 0.12s; }
-.settings-nav-icon svg { width: 1rem; height: 1rem; }
-
-/* ── Indholdsområde ──────────────────────────────────────────── */
-.settings-content {
+/* ── Content ─────────────────────────────────────────────── */
+.st-content {
     flex: 1;
     min-width: 0;
+    padding: 2rem 2.5rem;
+    max-width: 46rem;
 }
 
-/* ── Section title ───────────────────────────────────────── */
-.s-section-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 0 0 1.5rem;
-}
-
-/* ── Banners ─────────────────────────────────────────────── */
-.s-banner {
-    border-radius: 0.625rem;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    margin-bottom: 1.25rem;
-}
-.s-banner-green  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.s-banner-purple { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
-
-/* ── Block ───────────────────────────────────────────────── */
-.s-block {
-    border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;
-    background: #fff;
-    margin-bottom: 1.5rem;
-    overflow: hidden;
-}
-.s-block-danger { border-color: #fecaca; }
-
-.s-block-title {
-    font-size: 0.9375rem;
+/* ── Typography ──────────────────────────────────────────── */
+.st-heading {
+    font-size: 0.8125rem;
     font-weight: 600;
-    color: #111827;
-    padding: 1rem 1.25rem 0;
+    color: #9ca3af;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 1.25rem;
 }
-.s-block-title-danger { color: #dc2626; }
 
-.s-block-desc {
+.st-subheading {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #9ca3af;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 0.75rem;
+}
+
+.st-muted {
     font-size: 0.875rem;
     color: #6b7280;
-    padding: 0.5rem 1.25rem 0;
-    margin: 0;
+    line-height: 1.5;
 }
 
-/* ── Row ─────────────────────────────────────────────────── */
-.s-form { display: flex; flex-direction: column; }
-.s-row  { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.s-row-action { padding-top: 0.75rem; padding-bottom: 0.75rem; flex-direction: row; }
-.s-row-between { flex-direction: row; align-items: center; justify-content: space-between; }
-.s-btn-row { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+.st-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 1.75rem 0;
+}
 
-.s-divider { height: 1px; background: #f3f4f6; }
+/* ── Profile hero ────────────────────────────────────────── */
+.st-profile-hero {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
 
-.s-label { font-size: 0.8125rem; font-weight: 500; color: #374151; }
-.s-err   { font-size: 0.8125rem; color: #ef4444; margin: 0; }
-
-.s-name-row { display: flex; align-items: center; gap: 0.75rem; }
-.s-avatar {
-    width: 2.25rem; height: 2.25rem; border-radius: 9999px;
+.st-avatar {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 9999px;
     background:
         radial-gradient(circle at 30% 80%, #dda0e8 0%, transparent 60%),
         radial-gradient(circle at 70% 20%, #a0cff5 0%, transparent 60%),
         radial-gradient(circle at 50% 50%, #c0b8f0 0%, transparent 70%);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.8125rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
 }
 
-/* ── Inputs ──────────────────────────────────────────────── */
-.s-input-wrap { position: relative; }
+.st-profile-name  { font-size: 1rem; font-weight: 700; color: #111827; }
+.st-profile-email { font-size: 0.875rem; color: #6b7280; margin-top: 0.125rem; }
+.st-profile-id    { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem; display: block; letter-spacing: 0.04em; }
 
-.s-input {
-    width: 100%; padding: 0.5625rem 0.875rem; font-size: 0.9375rem;
-    border: 1.5px solid #e5e7eb; border-radius: 0.5rem;
-    background: #fafafa; color: #111827; outline: none;
+/* ── Form ────────────────────────────────────────────────── */
+.st-form { display: flex; flex-direction: column; gap: 0; }
+
+.st-field-row {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+.st-field-row:last-of-type { border-bottom: none; }
+
+/* stacked fallback for Account password fields */
+.st-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+}
+
+.st-input-col { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.st-form-actions { padding-top: 1.25rem; }
+
+/* Side-by-side field pair */
+.st-field-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.st-field-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+.st-label-block {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.st-textarea { max-width: 100%; resize: vertical; min-height: 6rem; }
+.st-field-pair .st-input,
+.st-field-block .st-input { max-width: 100%; }
+
+.st-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.st-input-wrap { position: relative; }
+.st-input {
+    width: 100%;
+    max-width: 26rem;
+    padding: 0.5625rem 0.875rem;
+    font-size: 0.9375rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background: #fafafa;
+    color: #111827;
+    outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
-.s-input:focus { border-color: #7E75CE; box-shadow: 0 0 0 3px rgba(126,117,206,0.1); background: #fff; }
-.s-input-err   { border-color: #f87171; }
-.s-input-wrap .s-input { padding-right: 2.75rem; }
+.st-input:focus { border-color: #7E75CE; box-shadow: 0 0 0 3px rgba(126,117,206,0.1); background: #fff; }
+.st-input-err   { border-color: #f87171; }
+.st-input-wrap .st-input { padding-right: 2.75rem; max-width: 100%; }
+.st-eye { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #9ca3af; display: flex; padding: 0; }
+.st-eye:hover { color: #374151; }
+.st-eye svg { width: 1.125rem; height: 1.125rem; }
 
-.s-eye {
-    position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer; color: #9ca3af; display: flex; padding: 0;
+.st-err  { font-size: 0.8125rem; color: #ef4444; margin: 0; }
+.st-link { color: #7E75CE; font-weight: 600; background: none; border: none; cursor: pointer; font-size: inherit; padding: 0; }
+.st-link:hover { text-decoration: underline; }
+
+/* ── Info row (konto) ────────────────────────────────────── */
+.st-info-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    margin-bottom: 0.25rem;
 }
-.s-eye:hover { color: #374151; }
-.s-eye svg { width: 1.125rem; height: 1.125rem; }
+.st-info-label { font-size: 0.875rem; color: #374151; font-weight: 500; min-width: 7rem; }
+.st-code { font-family: 'SF Mono', 'Fira Code', monospace; background: #f3f4f6; padding: 0.25rem 0.625rem; border-radius: 0.375rem; color: #111827; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.04em; user-select: all; }
 
 /* ── Buttons ─────────────────────────────────────────────── */
-.s-btn {
+.st-btn {
     display: inline-flex; align-items: center; gap: 0.375rem;
-    padding: 0.5rem 1.125rem; font-size: 0.875rem; font-weight: 600;
-    color: #fff; background: linear-gradient(135deg, #7E75CE, #5BC4E8);
-    border: none; border-radius: 0.5rem; cursor: pointer;
-    transition: opacity 0.15s; white-space: nowrap;
+    padding: 0.5rem 1.125rem; font-size: 0.875rem; font-weight: 500;
+    color: #374151; background: #fff;
+    border: 1.5px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s; white-space: nowrap;
 }
-.s-btn:hover:not(:disabled) { opacity: 0.88; }
-.s-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-.s-btn-danger  { background: linear-gradient(135deg, #ef4444, #dc2626); }
-.s-btn-ghost   { background: transparent; color: #6b7280; border: 1.5px solid #e5e7eb; }
-.s-btn-ghost:hover { color: #111827; background: #f3f4f6; }
-.s-btn-outline {
-    background: transparent; color: #374151;
-    border: 1.5px solid #d1d5db; padding: 0.4375rem 1rem; font-size: 0.8125rem;
+.st-btn:hover:not(:disabled) { background: #f9fafb; border-color: #9ca3af; }
+.st-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.st-btn-danger  { color: #dc2626; border-color: #fca5a5; background: #fff; }
+.st-btn-danger:hover:not(:disabled) { background: #fef2f2; border-color: #f87171; }
+.st-btn-ghost   { background: #fff; color: #6b7280; border: 1.5px solid #e5e7eb; }
+.st-btn-ghost:hover { color: #111827; background: #f9fafb; }
+.st-btn-outline {
+    background: #fff; color: #374151;
+    border: 1.5px solid #d1d5db;
+    padding: 0.4375rem 1rem; font-size: 0.8125rem;
 }
-.s-btn-outline:hover:not(:disabled) { background: #f9fafb; }
+.st-btn-outline:hover:not(:disabled) { background: #f9fafb; }
+.st-btn-loading { display: inline-flex; align-items: center; gap: 0.375rem; }
+.st-spin { width: 0.875rem; height: 0.875rem; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 9999px; animation: stspin 0.7s linear infinite; display: inline-block; }
+.st-spin-dark { border-color: rgba(0,0,0,0.1); border-top-color: #6b7280; }
+@keyframes stspin { to { transform: rotate(360deg); } }
 
-.s-btn-loading { display: inline-flex; align-items: center; gap: 0.375rem; }
-.s-spin {
-    width: 0.875rem; height: 0.875rem;
-    border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-    border-radius: 9999px; animation: sspin 0.7s linear infinite; display: inline-block;
+/* ── Billing ─────────────────────────────────────────────── */
+.st-bill-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: space-between;
+    flex-wrap: wrap;
 }
-.s-spin-dark { border-color: rgba(0,0,0,0.1); border-top-color: #6b7280; }
-@keyframes sspin { to { transform: rotate(360deg); } }
 
-.s-link { color: #7E75CE; font-weight: 600; background: none; border: none; cursor: pointer; font-size: inherit; padding: 0; }
-.s-link:hover { text-decoration: underline; }
-
-.s-verify-notice {
-    font-size: 0.8125rem; color: #92400e;
-    background: #fffbeb; border: 1px solid #fde68a;
-    border-radius: 0.375rem; padding: 0.5rem 0.75rem;
-    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+.st-bill-plan-icon {
+    width: 3rem; height: 3rem; flex-shrink: 0;
+    border-radius: 0.75rem;
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    display: flex; align-items: center; justify-content: center;
+    color: #6b7280;
 }
+.st-bill-plan-icon svg { width: 1.375rem; height: 1.375rem; }
+
+.st-bill-plan-info { flex: 1; min-width: 0; }
+.st-bill-plan-name { font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 0.125rem; }
+
+.st-bill-card-icon {
+    width: 2.25rem; height: 2.25rem; flex-shrink: 0;
+    color: #9ca3af; display: flex; align-items: center; justify-content: center;
+}
+.st-bill-card-icon svg { width: 1.25rem; height: 1.25rem; }
+.st-bill-card-info { flex: 1; min-width: 0; }
+
+.st-bill-section {
+    font-size: 0.8125rem; font-weight: 600; color: #9ca3af;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 0.875rem;
+}
+
+.st-bill-amount {
+    font-size: 1.25rem; font-weight: 700; color: #111827;
+    margin-bottom: 0.125rem;
+}
+
+/* ── Banners ─────────────────────────────────────────────── */
+.st-banner { border-radius: 0.625rem; padding: 0.75rem 1rem; font-size: 0.875rem; margin-bottom: 1.25rem; }
+.st-banner-green  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.st-banner-purple { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
+
+/* ── Notices ─────────────────────────────────────────────── */
+.st-notice { font-size: 0.8125rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.375rem; padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.st-notice-warn { border-radius: 0.5rem; padding: 0.75rem; display: block; }
+
+/* ── Billing ─────────────────────────────────────────────── */
+.st-billing-plan-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+}
+.st-billing-plan-name { font-size: 1rem; font-weight: 700; color: #111827; }
 
 /* ── Plan grid ───────────────────────────────────────────── */
-.plan-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: 0.875rem;
-    padding: 1rem 1.25rem;
-}
-.plan-card {
-    position: relative; border: 2px solid #e5e7eb; border-radius: 0.75rem;
-    padding: 1.125rem 1rem 1rem; cursor: pointer;
-    transition: border-color 0.18s, box-shadow 0.18s, transform 0.12s;
-    background: #fff; user-select: none;
-}
-.plan-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 3px 12px rgba(0,0,0,0.07); }
-.plan-card-active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, white); }
+.st-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.875rem; margin-top: 0.75rem; }
+.st-plan-card { position: relative; border: 2px solid #e5e7eb; border-radius: 0.75rem; padding: 1.125rem 1rem 1rem; transition: border-color 0.18s, box-shadow 0.18s, transform 0.12s; background: #fff; }
+.st-plan-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 3px 12px rgba(0,0,0,0.07); }
+.st-plan-card-active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, white); }
+.st-plan-badge { position: absolute; top: -0.5625rem; left: 50%; transform: translateX(-50%); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; padding: 0.1875rem 0.5rem; background: var(--accent); color: #fff; border-radius: 9999px; }
+.st-plan-name      { font-size: 0.9375rem; font-weight: 700; color: #111827; margin-bottom: 0.375rem; }
+.st-plan-price     { margin-bottom: 0.25rem; }
+.st-plan-price-num { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+.st-plan-price-unit { font-size: 0.75rem; color: #6b7280; }
+.st-plan-msgs      { font-size: 0.75rem; color: #374151; font-weight: 500; margin-bottom: 0.875rem; }
+.st-plan-feats     { list-style: none; padding: 0; margin: 0 0 0.875rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.st-plan-feats li  { display: flex; align-items: flex-start; gap: 0.3rem; font-size: 0.75rem; color: #374151; }
+.st-plan-feats svg { width: 0.75rem; height: 0.75rem; color: var(--accent); flex-shrink: 0; margin-top: 0.1rem; }
+.st-plan-current   { font-size: 0.75rem; font-weight: 600; color: var(--accent); }
+.st-plan-pick-btn  { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 700; color: #fff; background: var(--accent); border: none; border-radius: 0.375rem; padding: 0.375rem 0.75rem; cursor: pointer; transition: opacity 0.15s; width: 100%; justify-content: center; }
+.st-plan-pick-btn:hover:not(:disabled) { opacity: 0.85; }
+.st-plan-pick-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.st-plan-cancel-btn { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 600; color: #6b7280; background: transparent; border: 1.5px solid #e5e7eb; border-radius: 0.375rem; padding: 0.3125rem 0.75rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; width: 100%; justify-content: center; }
+.st-plan-cancel-btn:hover:not(:disabled) { border-color: #f87171; color: #dc2626; }
+.st-plan-cancel-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.plan-badge {
-    position: absolute; top: -0.5625rem; left: 50%; transform: translateX(-50%);
-    font-size: 0.625rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    white-space: nowrap; padding: 0.1875rem 0.5rem;
-    background: var(--accent); color: #fff; border-radius: 9999px;
-}
-.plan-name      { font-size: 0.9375rem; font-weight: 700; color: #111827; margin-bottom: 0.375rem; }
-.plan-price     { margin-bottom: 0.25rem; }
-.plan-price-num { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
-.plan-price-unit { font-size: 0.75rem; color: #6b7280; }
-.plan-msgs      { font-size: 0.75rem; color: #374151; font-weight: 500; margin-bottom: 0.875rem; }
-.plan-feats     { list-style: none; padding: 0; margin: 0 0 0.875rem; display: flex; flex-direction: column; gap: 0.3rem; }
-.plan-feats li  { display: flex; align-items: flex-start; gap: 0.3rem; font-size: 0.75rem; color: #374151; }
-.plan-feats svg { width: 0.75rem; height: 0.75rem; color: var(--accent); flex-shrink: 0; margin-top: 0.1rem; }
-.plan-current   { font-size: 0.75rem; font-weight: 600; color: var(--accent); }
+/* ── 2FA ─────────────────────────────────────────────────── */
+.st-2fa-header { display: flex; align-items: center; gap: 0.875rem; margin-bottom: 0.25rem; }
+.st-2fa-icon   { width: 2.5rem; height: 2.5rem; border-radius: 0.625rem; background: #f9fafb; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.st-2fa-icon svg { width: 1.25rem; height: 1.25rem; color: #6b7280; }
+.st-2fa-info   { flex: 1; }
+.st-2fa-title  { font-size: 0.9375rem; font-weight: 700; color: #111827; }
 
-.plan-pick-btn {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-size: 0.75rem; font-weight: 700; color: #fff;
-    background: var(--accent); border: none; border-radius: 0.375rem;
-    padding: 0.375rem 0.75rem; cursor: pointer;
-    transition: opacity 0.15s; width: 100%; justify-content: center;
-}
-.plan-pick-btn:hover:not(:disabled) { opacity: 0.85; }
-.plan-pick-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.st-badge { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.25rem 0.625rem; border-radius: 9999px; flex-shrink: 0; }
+.st-badge-green { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.st-badge-red   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
-.plan-cancel-btn {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    font-size: 0.75rem; font-weight: 600; color: #6b7280;
-    background: transparent; border: 1.5px solid #e5e7eb; border-radius: 0.375rem;
-    padding: 0.3125rem 0.75rem; cursor: pointer;
-    transition: border-color 0.15s, color 0.15s; width: 100%; justify-content: center;
-}
-.plan-cancel-btn:hover:not(:disabled) { border-color: #f87171; color: #dc2626; }
-.plan-cancel-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-.plan-header-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 1.25rem; gap: 1rem; flex-wrap: wrap;
-}
-.plan-portal-btn {
-    margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 0.375rem;
-}
+.st-qr { display: flex; justify-content: center; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1rem; }
+.st-qr :deep(svg) { width: 180px; height: 180px; }
+.st-secret { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.st-code-input { width: 10rem !important; text-align: center; font-size: 1.25rem; font-weight: 600; letter-spacing: 0.35em; padding-left: 1em !important; font-family: 'SF Mono', 'Fira Code', monospace; max-width: 10rem !important; }
+.st-codes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.75rem; }
+.st-code-block { font-family: 'SF Mono', 'Fira Code', monospace; background: #f3f4f6; padding: 0.5rem 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 600; color: #111827; text-align: center; user-select: all; display: block; }
 
 /* ── Usage ───────────────────────────────────────────────── */
-.usage-block-title {
-    font-size: 1rem; font-weight: 700; color: #111827;
-    padding: 1rem 1.25rem 0; margin-bottom: 0.25rem;
-}
-.usage-row {
-    display: flex; align-items: center; gap: 1rem;
-    padding: 0.875rem 1.25rem;
-}
-.usage-toggle-row { padding: 1rem 1.25rem; }
-.usage-row-left { flex: 0 0 10rem; }
-.usage-row-name {
-    font-size: 0.875rem; font-weight: 500; color: #111827;
-    display: flex; align-items: center; gap: 0.375rem;
-}
-.usage-row-sub  { font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem; }
-.usage-bar-wrap { flex: 1; }
-.usage-track    { height: 0.5rem; background: #f3f4f6; border-radius: 9999px; overflow: hidden; }
-.usage-fill     { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
-.usage-pct-label {
-    font-size: 0.8125rem; font-weight: 600; white-space: nowrap; flex: 0 0 5.5rem; text-align: right;
-}
-.usage-warn {
-    font-size: 0.8125rem; color: #92400e;
-    background: #fffbeb; border: 1px solid #fde68a;
-    border-radius: 0.375rem; padding: 0.5rem 0.75rem; margin: 0 1.25rem 0.75rem;
-    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-}
-.usage-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; padding: 1rem 1.25rem; }
-.usage-stat  { text-align: center; }
-.usage-stat-num   { font-size: 1.375rem; font-weight: 700; color: #111827; }
-.usage-stat-num span { font-size: 0.9rem; color: #6b7280; font-weight: 500; }
-.usage-stat-label { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; }
+.st-usage-item { margin-bottom: 1rem; }
 
-.usage-toggle {
-    position: relative; width: 2.75rem; height: 1.5rem;
-    border-radius: 9999px; background: #d1d5db; border: none;
-    cursor: pointer; transition: background 0.2s; flex-shrink: 0; padding: 0;
+.st-usage-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
 }
-.usage-toggle-on { background: #7E75CE; }
-.usage-toggle-thumb {
-    position: absolute; top: 0.1875rem; left: 0.1875rem;
-    width: 1.125rem; height: 1.125rem; border-radius: 9999px;
-    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    transition: transform 0.2s; display: block;
-}
-.usage-toggle-on .usage-toggle-thumb { transform: translateX(1.25rem); }
+.st-usage-name { font-size: 0.9375rem; font-weight: 500; color: #111827; }
+.st-usage-pct  { font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
+.st-usage-track { height: 0.5rem; background: #f3f4f6; border-radius: 9999px; overflow: hidden; }
+.st-usage-fill  { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
 
-.usage-info-chip {
-    font-size: 0.6875rem; font-weight: 600; color: #9ca3af;
-    background: #f3f4f6; border-radius: 9999px; padding: 0.125rem 0.5rem;
+.st-stats-row {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #f3f4f6;
 }
-.usage-autoreload-off { color: #ef4444; font-size: 0.75rem; }
+.st-stat-num   { font-size: 1.375rem; font-weight: 700; color: #111827; }
+.st-stat-num span { font-size: 0.875rem; color: #9ca3af; font-weight: 400; }
+.st-stat-label { font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem; }
+
+.st-extra-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+}
+
+.st-extra-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* ── Toggle ──────────────────────────────────────────────── */
+.st-toggle { position: relative; width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; border: none; cursor: pointer; transition: background 0.2s; flex-shrink: 0; padding: 0; }
+.st-toggle-on { background: #7E75CE; }
+.st-toggle-thumb { position: absolute; top: 0.1875rem; left: 0.1875rem; width: 1.125rem; height: 1.125rem; border-radius: 9999px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; display: block; }
+.st-toggle-on .st-toggle-thumb { transform: translateX(1.25rem); }
 </style>

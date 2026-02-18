@@ -30,12 +30,13 @@ class ProfileController extends Controller
             : 0;
 
         $cases = CaseModel::where('user_id', $user->id)
-            ->orderByDesc('updated_at')
-            ->get(['id', 'title', 'status', 'updated_at']);
+            ->orderByDesc('created_at')
+            ->get(['id', 'title', 'situation_summary', 'status', 'created_at']);
 
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail'  => $user instanceof MustVerifyEmail,
             'status'           => session('status'),
+            'twoFactor'        => session('twoFactor'),
             'usagePercent'     => $usagePercent,
             'messagesUsed'     => $messagesUsed,
             'messagesLimit'    => $messagesLimit,

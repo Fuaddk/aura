@@ -4,3 +4,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Page transition ─────────────────────────────────────────── */
+@keyframes page-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-transition-in .chat-main,
+.page-transition-in .adm-main,
+.page-transition-in .auth-card,
+.page-transition-in .auth-container {
+    animation: page-in 0.18s ease-out both;
+}

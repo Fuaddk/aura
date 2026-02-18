@@ -16,8 +16,13 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'display_name',
+        'work_description',
+        'preferences',
         'email',
+        'is_admin',
         'password',
+        'google_id',
         'organization_id',
         'phone',
         'consent_data_processing',
@@ -31,6 +36,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     protected function casts(): array
@@ -38,12 +45,21 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
             'consent_data_processing' => 'boolean',
             'consent_ai_analysis' => 'boolean',
             'wallet_balance' => 'decimal:2',
             'ai_messages_used' => 'integer',
             'ai_messages_limit' => 'integer',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return !is_null($this->two_factor_confirmed_at);
     }
 
     // ADD THESE METHODS:

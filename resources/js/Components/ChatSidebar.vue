@@ -15,10 +15,12 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'toggle']);
 
 const page = usePage();
 const userMenuOpen = ref(false);
+
+const isMenuActive = (path) => page.url.startsWith(path);
 const openChatMenu = ref(null);
 const openGroupMenu = ref(null);
 const deletingCase = ref(null);
@@ -27,6 +29,25 @@ const deletingGroup = ref(null);
 // Task data from shared props
 const pendingTaskCount = computed(() => page.props.pendingTaskCount || 0);
 const newTaskCount = computed(() => page.props.newTaskCount || 0);
+const urgentTaskCount = computed(() => page.props.urgentTaskCount || 0);
+const warningTaskCount = computed(() => page.props.warningTaskCount || 0);
+const soonTaskCount = computed(() => page.props.soonTaskCount || 0);
+const connectedEmailCount = computed(() => page.props.connectedEmailCount || 0);
+
+// Bestem badge-farve baseret på hastegrad
+const taskBadgeLevel = computed(() => {
+    if (urgentTaskCount.value > 0) return 'urgent';    // rød (≤3 dage)
+    if (warningTaskCount.value > 0) return 'warning';  // orange (4-7 dage)
+    if (soonTaskCount.value > 0)   return 'soon';      // gul (8-14 dage)
+    if (pendingTaskCount.value > 0) return 'ok';       // grøn
+    return null;
+});
+const taskBadgeCount = computed(() => {
+    if (taskBadgeLevel.value === 'urgent') return urgentTaskCount.value;
+    if (taskBadgeLevel.value === 'warning') return warningTaskCount.value;
+    if (taskBadgeLevel.value === 'soon')   return soonTaskCount.value;
+    return pendingTaskCount.value;
+});
 
 const startNewChat = () => {
     router.visit(route('dashboard', { new: 1 }));
@@ -150,11 +171,11 @@ const groupedCases = computed(() => {
         <div v-if="openChatMenu || openGroupMenu" class="fixed inset-0 z-40" @click="closeMenus"></div>
 
         <!-- Sidebar Header -->
-        <div class="flex items-center justify-between p-4">
+        <div class="sidebar-header flex items-center justify-between p-4">
             <button
-                @click="emit('close')"
+                @click="emit('toggle')"
                 class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Luk sidebar"
+                :title="open ? 'Luk sidebar' : 'Åbn sidebar'"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
@@ -163,7 +184,7 @@ const groupedCases = computed(() => {
 
             <button
                 @click="startNewChat"
-                class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                class="sidebar-new-btn p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Ny samtale"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -174,30 +195,47 @@ const groupedCases = computed(() => {
 
         <!-- Menu Items -->
         <div class="sidebar-menu">
-            <Link :href="route('tasks.index')" class="sidebar-menu-item">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <span class="flex-1">Opgaver</span>
-                <span v-if="newTaskCount > 0" class="sb-badge-new">{{ newTaskCount }}</span>
-                <span v-else-if="pendingTaskCount > 0" class="sb-badge-count">{{ pendingTaskCount }}</span>
+            <Link :href="route('tasks.index')" :class="['sidebar-menu-item', { 'sidebar-menu-item-active': isMenuActive('/tasks') }]">
+                <span class="sb-icon-wrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    <span v-if="urgentTaskCount > 0 || warningTaskCount > 0 || soonTaskCount > 0" class="sb-dot sb-dot-red"></span>
+                </span>
+                <span class="sidebar-menu-label flex-1">Mine opgaver</span>
+                <span v-if="urgentTaskCount > 0" class="sb-badge-urgent">{{ urgentTaskCount }}</span>
+                <span v-if="warningTaskCount > 0" class="sb-badge-warning">{{ warningTaskCount }}</span>
+                <span v-if="soonTaskCount > 0" class="sb-badge-soon">{{ soonTaskCount }}</span>
             </Link>
-            <Link :href="route('documents.index')" class="sidebar-menu-item">
+            <Link :href="route('documents.index')" :class="['sidebar-menu-item', { 'sidebar-menu-item-active': isMenuActive('/documents') }]">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                 </svg>
-                <span class="flex-1">Mine dokumenter</span>
+                <span class="sidebar-menu-label flex-1">Mine dokumenter</span>
             </Link>
-            <Link :href="route('calendar.index')" class="sidebar-menu-item">
+            <Link :href="route('calendar.index')" :class="['sidebar-menu-item', { 'sidebar-menu-item-active': isMenuActive('/calendar') }]">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                 </svg>
-                <span class="flex-1">Kalender</span>
+                <span class="sidebar-menu-label flex-1">Kalender</span>
+            </Link>
+            <Link :href="route('inbox.index')" :class="['sidebar-menu-item', { 'sidebar-menu-item-active': isMenuActive('/inbox') }]">
+                <span class="sb-icon-wrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z" />
+                    </svg>
+                    <span v-if="connectedEmailCount > 0" class="sb-dot sb-dot-green"></span>
+                </span>
+                <span class="sidebar-menu-label flex-1">Indbakke</span>
+                <span v-if="connectedEmailCount > 0" class="sb-badge-connected">
+                    <span style="width:5px;height:5px;border-radius:9999px;background:#86efac;flex-shrink:0;display:inline-block;"></span>
+                    {{ connectedEmailCount }} tilsluttet
+                </span>
             </Link>
         </div>
 
         <!-- Conversations List -->
-        <div class="flex-1 overflow-y-auto px-3">
+        <div class="sidebar-conversations flex-1 overflow-y-auto px-3">
             <div v-if="cases.length === 0" class="px-2 py-4 text-sm text-gray-400 text-center">
                 Ingen samtaler endnu
             </div>
@@ -261,7 +299,7 @@ const groupedCases = computed(() => {
             >
                 <div
                     v-if="userMenuOpen"
-                    class="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
+                    class="sidebar-user-popup absolute bottom-full left-3 right-3 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
                 >
                     <Link
                         :href="route('profile.edit')"
@@ -271,6 +309,17 @@ const groupedCases = computed(() => {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                         </svg>
                         Profil
+                    </Link>
+                    <Link
+                        v-if="$page.props.auth.user.is_admin"
+                        :href="route('admin.dashboard')"
+                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        Admin panel
                     </Link>
                     <Link
                         :href="route('logout')"
@@ -294,15 +343,16 @@ const groupedCases = computed(() => {
 
             <div
                 @click="userMenuOpen = !userMenuOpen"
-                class="relative z-50 flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                class="sidebar-footer-row relative z-50 flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
             >
                 <div class="sidebar-user-avatar">
                     {{ $page.props.auth.user.name.charAt(0).toUpperCase() }}
                 </div>
-                <div class="flex-1 min-w-0">
+                <div class="sidebar-footer-text flex-1 min-w-0">
                     <p class="text-sm font-medium text-gray-900 truncate">{{ $page.props.auth.user.name }}</p>
+                    <p class="text-xs text-gray-400 truncate">{{ $page.props.auth.user.email }}</p>
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="sidebar-footer-chevron w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
             </div>

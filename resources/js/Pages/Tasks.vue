@@ -2,13 +2,18 @@
 import { ref } from 'vue';
 import ChatLayout from '@/Layouts/ChatLayout.vue';
 import ChatSidebar from '@/Components/ChatSidebar.vue';
+import NotificationBell from '@/Components/NotificationBell.vue';
 import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
     tasks: Array,
+    urgentTasks: { type: Array, default: () => [] },
     cases: Array,
     category: String,
     categoryCounts: Object,
+    categoryUrgency: { type: Object, default: () => ({}) },
+    categoryUrgencyCounts: { type: Object, default: () => ({}) },
+    completionPercentage: { type: Number, default: 0 },
 });
 
 const sidebarOpen = ref(true);
@@ -52,6 +57,33 @@ const formatDate = (date) => {
 const openTaskChat = (task) => {
     router.visit(route('chat.task', { task: task.id }));
 };
+
+// Antal dage til forfald (negativt = overskredet)
+const daysUntil = (date) => {
+    if (!date) return null;
+    const diff = new Date(date) - new Date();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+// Hastegrad for en enkelt opgave
+const urgencyLevel = (task) => {
+    const days = daysUntil(task.due_date);
+    if (days === null) return 'ok';
+    if (days <= 7)  return 'urgent';
+    if (days <= 14) return 'soon';
+    return 'ok';
+};
+
+// Relativ fristtekst
+const dueLabel = (date) => {
+    const days = daysUntil(date);
+    if (days === null) return '';
+    if (days < 0)  return `Overskredet med ${Math.abs(days)} dag${Math.abs(days) === 1 ? '' : 'e'}`;
+    if (days === 0) return 'Udløber i dag';
+    if (days === 1) return 'Udløber i morgen';
+    if (days <= 7)  return `Om ${days} dage`;
+    return formatDate(date);
+};
 </script>
 
 <template>
@@ -63,22 +95,11 @@ const openTaskChat = (task) => {
                 :active-case="null"
                 :cases="cases"
                 :open="sidebarOpen"
-                @close="sidebarOpen = false"
+                @toggle="sidebarOpen = !sidebarOpen"
             />
 
             <div class="chat-main">
                 <div class="chat-topbar">
-                    <button
-                        v-if="!sidebarOpen"
-                        @click="sidebarOpen = true"
-                        class="chat-topbar-toggle"
-                        title="Åbn sidebar"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
-                        </svg>
-                    </button>
-
                     <button v-if="category" @click="goBack" class="cat-back-btn" title="Tilbage til kategorier">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -86,9 +107,48 @@ const openTaskChat = (task) => {
                     </button>
 
                     <h2 class="page-topbar-title">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="topbar-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                        {{ category ? categories[category]?.label || 'Opgaver' : 'Opgaver' }}
+                        <!-- Kategori-specifikt ikon -->
+                        <div v-if="category" class="topbar-cat-icon" :style="{ backgroundColor: categories[category]?.bg, color: categories[category]?.color }">
+                            <!-- Samvær & Børn -->
+                            <svg v-if="category === 'samvaer'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                            </svg>
+                            <!-- Bolig & Ejendom -->
+                            <svg v-else-if="category === 'bolig'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                            </svg>
+                            <!-- Økonomi & Gæld -->
+                            <svg v-else-if="category === 'oekonomi'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                            </svg>
+                            <!-- Juridisk -->
+                            <svg v-else-if="category === 'juridisk'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 0 1-2.031.352 5.988 5.988 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971Zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 0 1-2.031.352 5.989 5.989 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971Z" />
+                            </svg>
+                            <!-- Kommune & Myndigheder -->
+                            <svg v-else-if="category === 'kommune'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                            </svg>
+                            <!-- Dokumenter & Aftaler -->
+                            <svg v-else-if="category === 'dokument'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                            </svg>
+                            <!-- Forsikring & Pension -->
+                            <svg v-else-if="category === 'forsikring'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                            </svg>
+                            <!-- Personlig Trivsel -->
+                            <svg v-else-if="category === 'personlig'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                            </svg>
+                        </div>
+                        <!-- Default ikon -->
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="topbar-icon">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        {{ category ? categories[category]?.label || 'Mine opgaver' : 'Mine opgaver' }}
                     </h2>
+                    <NotificationBell style="margin-left: auto;" />
                 </div>
 
                 <div class="page-scroll">
@@ -103,8 +163,11 @@ const openTaskChat = (task) => {
                             <span>Opgaver oprettes automatisk når du chatter med Aura</span>
                         </div>
 
-                        <!-- Category Cards (overview page) -->
-                        <div v-if="!category && totalTasks > 0" class="cat-grid">
+                        <!-- Overview layout: kategori-kort til venstre, hastekolonne til højre -->
+                        <div v-if="!category && totalTasks > 0" class="tasks-overview-layout">
+
+                            <!-- Category Cards -->
+                            <div class="cat-grid">
                             <button
                                 v-for="(cat, type) in categories"
                                 :key="type"
@@ -147,14 +210,58 @@ const openTaskChat = (task) => {
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
                                         </svg>
                                     </div>
-                                    <span v-if="categoryCounts[type]" class="cat-card-badge">{{ categoryCounts[type] }}</span>
+                                    <div class="cat-card-badges">
+                                        <span v-if="categoryUrgencyCounts[type]?.urgent > 0" class="cat-urgency-badge cat-urgency-badge--urgent">{{ categoryUrgencyCounts[type].urgent }}</span>
+                                        <span v-if="categoryUrgencyCounts[type]?.warning > 0" class="cat-urgency-badge cat-urgency-badge--warning">{{ categoryUrgencyCounts[type].warning }}</span>
+                                        <span v-if="categoryUrgencyCounts[type]?.soon > 0" class="cat-urgency-badge cat-urgency-badge--soon">{{ categoryUrgencyCounts[type].soon }}</span>
+                                    </div>
                                 </div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-label">{{ cat.label }}</span>
                                     <span class="cat-card-desc">{{ cat.desc }}</span>
                                 </div>
                             </button>
-                        </div>
+                            </div><!-- /cat-grid -->
+
+                            <!-- Kræver handling nu — til højre -->
+                            <div v-if="urgentTasks.length > 0" class="urgent-section">
+                                <!-- Completion Progress Bar -->
+                                <div class="tasks-progress-bar">
+                                    <div class="tasks-progress-label">
+                                        <span class="tasks-progress-text">Fuldført</span>
+                                        <span class="tasks-progress-percent">{{ completionPercentage }}%</span>
+                                    </div>
+                                    <div class="tasks-progress-track">
+                                        <div class="tasks-progress-fill" :style="{ width: completionPercentage + '%' }"></div>
+                                    </div>
+                                </div>
+
+                                <h3 class="urgent-section-title">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                    </svg>
+                                    Kræver handling nu
+                                </h3>
+                                <div class="urgent-task-list">
+                                    <div
+                                        v-for="task in urgentTasks"
+                                        :key="'u' + task.id"
+                                        :class="['urgent-task-row', `urgent-task-row--${urgencyLevel(task)}`]"
+                                        @click="openTaskChat(task)"
+                                    >
+                                        <div :class="['urgent-dot', `urgent-dot--${urgencyLevel(task)}`]"></div>
+                                        <div class="urgent-task-info">
+                                            <span class="urgent-task-title">{{ task.title }}</span>
+                                            <span :class="['urgent-task-due', `urgent-due--${urgencyLevel(task)}`]">{{ dueLabel(task.due_date) }}</span>
+                                        </div>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="urgent-arrow">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div><!-- /tasks-overview-layout -->
 
                         <!-- Task List (category page) -->
                         <div v-if="category">
@@ -178,11 +285,11 @@ const openTaskChat = (task) => {
                                     <h3 class="task-title">{{ task.title }}</h3>
                                     <p v-if="task.description" class="task-desc">{{ task.description }}</p>
                                     <div class="task-card-footer">
-                                        <div v-if="task.due_date" class="task-due">
+                                        <div v-if="task.due_date" :class="['task-due', `task-due--${urgencyLevel(task)}`]">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                                             </svg>
-                                            {{ formatDate(task.due_date) }}
+                                            {{ dueLabel(task.due_date) }}
                                         </div>
                                         <div class="task-chat-hint">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">

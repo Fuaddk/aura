@@ -1,31 +1,55 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\InboxController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // Chat er main dashboard
     Route::get('/dashboard', [ChatController::class, 'index'])->name('dashboard');
-    Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
-    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
-    Route::get('/chat/task/{task}', [ChatController::class, 'taskChat'])->name('chat.task');
-    Route::post('/chat/task/{task}/send', [ChatController::class, 'taskChatSend'])->name('chat.task.send');
-    Route::patch('/tasks/{task}/status', [TaskController::class, 'updateStatus'])->name('tasks.status');
-    Route::post('/tasks/{task}/documents', [TaskController::class, 'saveDocument'])->name('tasks.documents.save');
-    Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
-    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
-    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
-    Route::delete('/cases/{case}', [ChatController::class, 'destroyCase'])->name('cases.destroy');
-    Route::delete('/cases/period/{period}', [ChatController::class, 'destroyPeriod'])->name('cases.destroy.period');
+
+    // AI-intensive endpoints - stricter rate limiting
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
+        Route::post('/chat/upload', [ChatController::class, 'uploadDocument'])->name('chat.upload');
+        Route::post('/chat/task/{task}/send', [ChatController::class, 'taskChatSend'])->name('chat.task.send');
+        Route::post('/chat/task/{task}/upload', [ChatController::class, 'taskChatUpload'])->name('chat.task.upload');
+    });
+
+    // General API endpoints - moderate rate limiting
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
+        Route::get('/chat/task/{task}', [ChatController::class, 'taskChat'])->name('chat.task');
+        Route::patch('/tasks/{task}/status', [TaskController::class, 'updateStatus'])->name('tasks.status');
+        Route::post('/tasks/{task}/documents', [TaskController::class, 'saveDocument'])->name('tasks.documents.save');
+        Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
+        Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+        Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+        Route::get('/calendar/ics', [CalendarController::class, 'ics'])->name('calendar.ics');
+        Route::get('/inbox', [InboxController::class, 'index'])->name('inbox.index');
+        Route::post('/inbox/connect', [InboxController::class, 'connect'])->name('inbox.connect');
+        Route::delete('/inbox/accounts/{account}', [InboxController::class, 'disconnect'])->name('inbox.disconnect');
+        Route::post('/inbox/accounts/{account}/sync', [InboxController::class, 'sync'])->name('inbox.sync');
+        Route::patch('/inbox/accounts/{account}/auto-sync', [InboxController::class, 'toggleAutoSync'])->name('inbox.auto-sync');
+        Route::delete('/cases/{case}', [ChatController::class, 'destroyCase'])->name('cases.destroy');
+        Route::delete('/cases/period/{period}', [ChatController::class, 'destroyPeriod'])->name('cases.destroy.period');
+        // Notifications
+        Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+        Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    });
 });
 
 Route::middleware('auth')->group(function () {
@@ -34,11 +58,38 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Two-Factor Authentication management
+    Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
+    Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+    Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->name('two-factor.disable');
+    Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
+
     // Stripe subscription
     Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
     Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
     Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
     Route::get('/subscription/portal', [SubscriptionController::class, 'portal'])->name('subscription.portal');
+});
+
+// Admin panel
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+    Route::patch('/users/{user}/plan', [AdminController::class, 'updatePlan'])->name('users.plan');
+    Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
+    Route::post('/notifications', [AdminController::class, 'sendNotification'])->name('notifications.send');
+
+    // Brugerchat
+    Route::get('/users/{user}/conversations', [AdminController::class, 'userConversations'])->name('users.conversations');
+
+    // Vidensbase (RAG)
+    Route::post('/knowledge/index-predefined', [AdminController::class, 'indexPredefinedSource'])->name('knowledge.index-predefined');
+    Route::post('/knowledge/url', [AdminController::class, 'addKnowledgeUrl'])->name('knowledge.url');
+    Route::post('/knowledge/document', [AdminController::class, 'uploadKnowledgeDocument'])->name('knowledge.document');
+    Route::delete('/knowledge/source', [AdminController::class, 'deleteKnowledgeSource'])->name('knowledge.source.destroy');
+
+    // API-indstillinger
+    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
 });
 
 // Stripe webhook – undtaget CSRF

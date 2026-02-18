@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,8 +32,12 @@ class ChatController extends Controller
             $activeCase = null;
         }
 
+        // Load conversations, excluding task-specific ones (they belong in TaskChat)
         $conversations = $activeCase
-            ? $activeCase->conversations()->orderBy('created_at', 'asc')->get()
+            ? $activeCase->conversations()
+                ->whereNull('metadata->task_id')
+                ->orderBy('created_at', 'asc')
+                ->get()
             : collect([]);
 
         // All user cases for sidebar
@@ -95,7 +100,7 @@ class ChatController extends Controller
         ]);
     }
 
-    public function taskChatSend(Request $request, Task $task): JsonResponse
+    public function taskChatSend(Request $request, Task $task): \Symfony\Component\HttpFoundation\Response
     {
         $user = auth()->user();
 
@@ -128,147 +133,518 @@ class ChatController extends Controller
         $taskRagQuery = $task->title . ' ' . $validated['message'];
         $taskRagContext = $this->knowledgeService->buildContext($taskRagQuery, topK: 4);
 
-        try {
-            $messages = [];
-            foreach ($history as $msg) {
-                $messages[] = [
-                    'role' => $msg->role,
-                    'content' => $msg->content,
-                ];
-            }
-
-            array_unshift($messages, [
-                'role' => 'system',
-                'content' => $this->getTaskSystemPrompt($task, $taskRagContext),
-            ]);
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.mistral.key'),
-                'Content-Type' => 'application/json',
-            ])->post('https://api.mistral.ai/v1/chat/completions', [
-                'model' => 'mistral-small-latest',
-                'messages' => $messages,
-                'max_tokens' => 2000,
-            ]);
-
-            if ($response->successful()) {
-                $aiMessage = $response->json('choices.0.message.content');
-            } else {
-                Log::error('Mistral API error (task chat)', ['status' => $response->status()]);
-                $aiMessage = "Beklager, jeg kunne ikke generere et svar lige nu. Prøv igen om lidt.";
-            }
-        } catch (\Exception $e) {
-            Log::error('Mistral exception (task chat)', ['message' => $e->getMessage()]);
-            $aiMessage = "Beklager, jeg kunne ikke generere et svar lige nu. Prøv igen om lidt.";
+        // Build Mistral messages
+        $mistralMessages = [];
+        foreach ($history as $msg) {
+            $mistralMessages[] = ['role' => $msg->role, 'content' => $msg->content];
         }
+        array_unshift($mistralMessages, [
+            'role'    => 'system',
+            'content' => $this->getTaskSystemPrompt($task, $taskRagContext),
+        ]);
 
-        // Parse document from response
-        $displayMessage = $aiMessage;
-        $document = null;
+        $taskId   = $task->id;
+        $caseId   = $task->case_id;
+        $taskRef  = $task; // keep reference for task creation
 
-        if (preg_match('/\[\/?DOCUMENT\]\s*(.+?)\s*\[\/?DOCUMENT\]/s', $displayMessage, $docMatch)) {
-            $displayMessage = trim(preg_replace('/\[\/?DOCUMENT\]\s*.+?\s*\[\/?DOCUMENT\]/s', '', $displayMessage));
-            $jsonStr = trim($docMatch[1]);
-            $docJson = json_decode($jsonStr, true);
-
-            if (!$docJson) {
-                $fixed = str_replace(["\r\n", "\r", "\n"], '\n', $jsonStr);
-                $docJson = json_decode($fixed, true);
+        return response()->stream(function () use (
+            $mistralMessages, $taskRef, $caseId, $taskId, $user
+        ) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
             }
 
-            if (!$docJson) {
-                if (preg_match('/"title"\s*:\s*"([^"]+)"/i', $jsonStr, $tMatch) &&
-                    preg_match('/"content"\s*:\s*"(.+)"\s*\}$/s', $jsonStr, $cMatch)) {
-                    $docJson = [
-                        'title' => $tMatch[1],
-                        'content' => str_replace(["\r\n", "\r", "\n"], "\n", trim($cMatch[1])),
-                    ];
+            $payload = json_encode([
+                'model'      => 'mistral-small-latest',
+                'messages'   => $mistralMessages,
+                'max_tokens' => 2000,
+                'stream'     => true,
+            ]);
+
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'        => 'POST',
+                    'header'        => "Authorization: Bearer " . config('services.mistral.key') . "\r\n"
+                                     . "Content-Type: application/json\r\n",
+                    'content'       => $payload,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+
+            $fullContent = '';
+            $streamFailed = false;
+
+            try {
+                $fp = fopen('https://api.mistral.ai/v1/chat/completions', 'r', false, $ctx);
+                if (!$fp) {
+                    $streamFailed = true;
+                } else {
+                    while (!feof($fp)) {
+                        $line = fgets($fp, 4096);
+                        if ($line === false) break;
+                        $line = trim($line);
+                        if (!str_starts_with($line, 'data: ')) continue;
+                        $data = substr($line, 6);
+                        if ($data === '[DONE]') break;
+
+                        $chunk = json_decode($data, true);
+                        $text  = $chunk['choices'][0]['delta']['content'] ?? '';
+                        if ($text !== '') {
+                            $fullContent .= $text;
+                            echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $text]) . "\n\n";
+                            flush();
+                        }
+                    }
+                    fclose($fp);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Mistral stream error (task chat)', ['error' => $e->getMessage()]);
+                $streamFailed = true;
+            }
+
+            if ($streamFailed) {
+                $fullContent = 'Beklager, jeg kunne ikke generere et svar lige nu. Prøv igen om lidt.';
+                echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $fullContent]) . "\n\n";
+                flush();
+            }
+
+            // ── Parse structured data ─────────────────────────────────────────
+            $displayMessage = $fullContent;
+            $document       = null;
+            $createdTasks   = [];
+
+            // Parse [DOCUMENT]
+            if (preg_match('/\[\/?DOCUMENT\]\s*(.+?)\s*\[\/?DOCUMENT\]/s', $displayMessage, $docMatch)) {
+                $displayMessage = trim(preg_replace('/\[\/?DOCUMENT\]\s*.+?\s*\[\/?DOCUMENT\]/s', '', $displayMessage));
+                $jsonStr = trim($docMatch[1]);
+                $docJson = json_decode($jsonStr, true)
+                    ?? json_decode(str_replace(["\r\n", "\r", "\n"], '\n', $jsonStr), true);
+
+                if (!$docJson && preg_match('/"title"\s*:\s*"([^"]+)"/i', $jsonStr, $tM) &&
+                    preg_match('/"content"\s*:\s*"(.+)"\s*\}$/s', $jsonStr, $cM)) {
+                    $docJson = ['title' => $tM[1], 'content' => str_replace(["\r\n", "\r", "\n"], "\n", trim($cM[1]))];
+                }
+
+                if ($docJson && isset($docJson['title'])) {
+                    $document = ['title' => $docJson['title'], 'content' => $docJson['content'] ?? ''];
                 }
             }
 
-            if ($docJson && isset($docJson['title'])) {
-                $document = [
-                    'title' => $docJson['title'],
-                    'content' => $docJson['content'] ?? '',
-                ];
+            // Normalize literal \n sequences in document content to real newlines
+            if ($document) {
+                $document['content'] = str_replace('\n', "\n", $document['content']);
             }
-        }
 
-        // Parse tasks from response
-        $createdTasks = [];
-        if (preg_match('/\[TASKS\]\s*(.+?)\s*\[\/TASKS\]/s', $displayMessage, $taskMatch)) {
-            $displayMessage = trim(preg_replace('/\[TASKS\]\s*.+?\s*\[\/TASKS\]/s', '', $displayMessage));
-            $rawTasks = trim($taskMatch[1]);
-            $tasksJson = json_decode($rawTasks, true);
+            // Fallback: detect document without [DOCUMENT] tags (AI skipped format)
+            if (!$document) {
+                $placeholders = preg_match_all('/\[[A-ZÆØÅ][^\[\]0-9]{2,50}\]/', $displayMessage);
+                if ($placeholders >= 3 && mb_strlen($displayMessage) > 300) {
+                    $title = 'Dokument';
+                    $keywordMap = ['brev' => 'Brev', 'aftale' => 'Aftale', 'samværsaftale' => 'Samværsaftale',
+                                   'ansøgning' => 'Ansøgning', 'klage' => 'Klage', 'erklæring' => 'Erklæring',
+                                   'skabelon' => 'Skabelon', 'udkast' => 'Udkast'];
+                    foreach ($keywordMap as $kw => $label) {
+                        if (mb_stripos($displayMessage, $kw) !== false) { $title = $label; break; }
+                    }
+                    $content = str_replace('\n', "\n", $displayMessage);
+                    $document = ['title' => $title, 'content' => $content];
+                    $displayMessage = '';
+                }
+            }
 
-            if (!is_array($tasksJson)) {
-                $fixed = str_replace(["\r\n", "\r", "\n"], ' ', $rawTasks);
-                $tasksJson = json_decode($fixed, true);
-            }
-            if ($tasksJson && !isset($tasksJson[0]) && isset($tasksJson['title'])) {
-                $tasksJson = [$tasksJson];
-            }
-            if (is_array($tasksJson)) {
-                foreach ($tasksJson as $taskData) {
-                    if (!isset($taskData['title'])) continue;
-                    $daysUntilDue = isset($taskData['days']) ? (int) $taskData['days'] : 7;
+            // Parse [TASKS]
+            if (preg_match('/\[\/?TASKS\]\s*(.+?)\s*\[\/?TASKS\]/s', $displayMessage, $tMatch)) {
+                $displayMessage = trim(preg_replace('/\[\/?TASKS\]\s*.+?\s*\[\/?TASKS\]/s', '', $displayMessage));
+                $rawTasks       = trim($tMatch[1]);
+                $tasksJson      = json_decode($rawTasks, true)
+                    ?? json_decode(str_replace(["\r\n", "\r", "\n"], ' ', $rawTasks), true);
+
+                if ($tasksJson && !isset($tasksJson[0]) && isset($tasksJson['title'])) {
+                    $tasksJson = [$tasksJson];
+                }
+                foreach ((array) $tasksJson as $td) {
+                    if (!isset($td['title'])) continue;
                     $newTask = Task::create([
-                        'case_id'      => $task->case_id,
+                        'case_id'      => $caseId,
                         'user_id'      => $user->id,
-                        'title'        => $taskData['title'],
-                        'description'  => $taskData['description'] ?? null,
-                        'priority'     => $taskData['priority'] ?? 'medium',
-                        'task_type'    => $taskData['type'] ?? 'personlig',
-                        'due_date'     => now()->addDays($daysUntilDue),
+                        'title'        => $td['title'],
+                        'description'  => $td['description'] ?? null,
+                        'priority'     => $td['priority'] ?? 'medium',
+                        'task_type'    => $td['type'] ?? 'personlig',
+                        'due_date'     => now()->addDays(isset($td['days']) ? (int) $td['days'] : 7),
                         'status'       => 'pending',
                         'ai_generated' => true,
-                        'ai_reasoning' => $taskData['reasoning'] ?? null,
+                        'ai_reasoning' => $td['reasoning'] ?? null,
                     ]);
                     $createdTasks[] = $newTask;
                 }
             }
+
+            // Cleanup
+            $displayMessage = trim(preg_replace('/\[\/?(?:TASKS|DOCUMENT)\]/i', '', $displayMessage));
+            $displayMessage = trim(preg_replace('/\n---\s*$/', '', $displayMessage));
+
+            // Build metadata
+            $metadata = ['task_id' => $taskId];
+            if ($document) $metadata['document'] = $document;
+            if ($createdTasks) {
+                $metadata['tasks'] = collect($createdTasks)->map(fn ($t) => [
+                    'id' => $t->id, 'title' => $t->title, 'description' => $t->description,
+                    'priority' => $t->priority, 'due_date' => $t->due_date?->format('Y-m-d'),
+                ])->toArray();
+            }
+
+            // Save AI response
+            Conversation::create([
+                'case_id'    => $caseId,
+                'user_id'    => $user->id,
+                'role'       => 'assistant',
+                'content'    => $displayMessage,
+                'model_used' => 'mistral-small-latest',
+                'metadata'   => $metadata,
+                'retrieved_chunks' => !empty($metadata['tasks']) || !empty($metadata['document'])
+                    ? array_filter(['tasks' => $metadata['tasks'] ?? null, 'document' => $metadata['document'] ?? null])
+                    : null,
+            ]);
+
+            // Send done event
+            echo 'data: ' . json_encode([
+                'type'     => 'done',
+                'message'  => $displayMessage,
+                'document' => $document,
+                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                    'id' => $t->id, 'title' => $t->title, 'description' => $t->description,
+                    'priority' => $t->priority, 'due_date' => $t->due_date?->format('Y-m-d'),
+                ]),
+            ]) . "\n\n";
+            flush();
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache, no-store',
+            'X-Accel-Buffering' => 'no',
+            'Connection'        => 'keep-alive',
+        ]);
+    }
+
+    public function taskChatUpload(Request $request, Task $task): \Symfony\Component\HttpFoundation\Response
+    {
+        $user = auth()->user();
+
+        if ($task->user_id !== $user->id) {
+            abort(403);
         }
 
-        // Clean leftover tags
-        $displayMessage = trim(preg_replace('/\[\/?(?:TASKS|DOCUMENT)\]/i', '', $displayMessage));
-        $displayMessage = trim(preg_replace('/\n---\s*$/', '', $displayMessage));
+        $request->validate([
+            'file'    => 'required|file|max:10240|mimes:pdf,txt,jpg,jpeg,png',
+            'message' => 'nullable|string|max:1000',
+        ]);
 
-        // Build metadata
-        $metadata = ['task_id' => $task->id];
-        if ($document) {
-            $metadata['document'] = $document;
-        }
-        if ($createdTasks) {
-            $metadata['tasks'] = collect($createdTasks)->map(fn ($t) => [
-                'id' => $t->id, 'title' => $t->title,
-                'description' => $t->description, 'priority' => $t->priority,
-                'due_date' => $t->due_date?->format('Y-m-d'),
-            ])->toArray();
+        $file = $request->file('file');
+        if (!$this->validateFileMagicBytes($file)) {
+            return response()->json(['message' => 'Filtypen matcher ikke indholdet.'], 422);
         }
 
-        // Save AI response
+        $limit = $user->ai_messages_limit ?? 50;
+        $used  = $user->ai_messages_used  ?? 0;
+        if ($used >= $limit) {
+            return response()->json([
+                'error'   => 'message_limit_reached',
+                'message' => 'Du har brugt alle dine AI-beskeder denne måned. Opgradér din plan for at fortsætte.',
+            ], 429);
+        }
+
+        $originalFilename = preg_replace('/[^\w\s\-\.]/', '_', $file->getClientOriginalName());
+        $mimeType         = $file->getMimeType();
+        $extension        = strtolower($file->getClientOriginalExtension());
+        $filename         = uniqid() . '.' . $extension;
+        $storagePath      = "documents/{$user->id}/{$filename}";
+        $absolutePath     = storage_path("app/{$storagePath}");
+
+        Storage::put($storagePath, file_get_contents($file->getRealPath()));
+
+        // Extract text from uploaded file
+        $extractedText = '';
+        try {
+            if ($extension === 'pdf') {
+                $parser        = new \Smalot\PdfParser\Parser();
+                $pdfDoc        = $parser->parseFile($absolutePath);
+                $extractedText = $pdfDoc->getText();
+
+                // Fallback for scanned PDFs
+                if (empty(trim($extractedText))) {
+                    $extractedText = $this->extractTextFromScannedPdf($absolutePath);
+                }
+            } elseif ($extension === 'txt') {
+                $raw = file_get_contents($absolutePath);
+                // Detect and convert UTF-16
+                if (str_starts_with($raw, "\xFF\xFE")) {
+                    $raw = mb_convert_encoding(substr($raw, 2), 'UTF-8', 'UTF-16LE');
+                } elseif (str_starts_with($raw, "\xFE\xFF")) {
+                    $raw = mb_convert_encoding(substr($raw, 2), 'UTF-8', 'UTF-16BE');
+                }
+                $extractedText = $raw;
+            } else {
+                // JPG / PNG — use Mistral vision
+                $base64   = base64_encode(file_get_contents($absolutePath));
+                $mimeVis  = in_array($extension, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png';
+                $extractedText = $this->extractTextFromImage($base64, $mimeVis);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Task document text extraction failed', ['error' => $e->getMessage()]);
+        }
+
+        $extractedText = mb_substr(trim($extractedText), 0, 8000);
+
+        // Save Document record linked to the task
+        \App\Models\Document::create([
+            'user_id'           => $user->id,
+            'case_id'           => $task->case_id,
+            'task_id'           => $task->id,
+            'filename'          => $filename,
+            'original_filename' => $originalFilename,
+            'mime_type'         => $mimeType,
+            'file_size_bytes'   => $file->getSize(),
+            'storage_path'      => $storagePath,
+            'document_type'     => 'upload',
+            'processing_status' => 'completed',
+            'extracted_text'    => $extractedText,
+        ]);
+
+        // Save user message with document reference
+        $userMessage = $request->input('message', '');
+        $userContent = $userMessage
+            ? "📎 {$originalFilename}\n\n{$userMessage}"
+            : "📎 Uploadet dokument: **{$originalFilename}**";
+
         Conversation::create([
             'case_id' => $task->case_id,
             'user_id' => $user->id,
-            'role' => 'assistant',
-            'content' => $displayMessage,
-            'model_used' => 'mistral-small-latest',
-            'metadata' => $metadata,
-            'retrieved_chunks' => array_merge(
-                $document ? ['document' => $document] : [],
-                $createdTasks ? ['tasks' => $metadata['tasks']] : []
-            ) ?: null,
+            'role'    => 'user',
+            'content' => $userContent,
+            'metadata' => ['task_id' => $task->id],
         ]);
 
-        return response()->json([
-            'success'  => true,
-            'message'  => $displayMessage,
-            'document' => $document,
-            'tasks'    => collect($createdTasks)->map(fn ($t) => [
-                'id' => $t->id, 'title' => $t->title,
-                'description' => $t->description, 'priority' => $t->priority,
-                'due_date' => $t->due_date?->format('Y-m-d'),
-            ]),
+        // Get task conversation history
+        $history = Conversation::where('user_id', $user->id)
+            ->whereJsonContains('metadata->task_id', $task->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->reverse();
+
+        // Build system prompt with document context
+        $truncated = mb_substr($extractedText, 0, 4000);
+        $noTextNote = empty($truncated)
+            ? "\n\nBemærk: Ingen tekst kunne udtrækkes fra denne fil."
+            : '';
+
+        $docSection = <<<SECTION
+
+
+─── UPLOADET DOKUMENT ───
+Brugeren har uploadet dokumentet: "{$originalFilename}" i forbindelse med denne opgave.
+
+Indhold:
+{$truncated}{$noTextNote}
+
+Analyser dokumentet grundigt i kontekst af opgaven. Hjælp brugeren med at forstå hvordan dokumentet relaterer til opgaven.
+SECTION;
+
+        $taskRagContext = $this->knowledgeService->buildContext($task->title, topK: 3);
+        $systemPrompt = $this->getTaskSystemPrompt($task, $taskRagContext) . $docSection;
+
+        $mistralMessages = [];
+        foreach ($history as $msg) {
+            $mistralMessages[] = ['role' => $msg->role, 'content' => $msg->content];
+        }
+        array_unshift($mistralMessages, ['role' => 'system', 'content' => $systemPrompt]);
+
+        $taskId = $task->id;
+        $caseId = $task->case_id;
+
+        return response()->stream(function () use (
+            $mistralMessages, $task, $user, $taskId, $caseId
+        ) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            $payload = json_encode([
+                'model'      => 'mistral-small-latest',
+                'messages'   => $mistralMessages,
+                'max_tokens' => 2000,
+                'stream'     => true,
+            ]);
+
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'        => 'POST',
+                    'header'        => "Authorization: Bearer " . config('services.mistral.key') . "\r\n"
+                                     . "Content-Type: application/json\r\n",
+                    'content'       => $payload,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+            ]);
+
+            $fullContent  = '';
+            $streamFailed = false;
+
+            try {
+                $fp = fopen('https://api.mistral.ai/v1/chat/completions', 'r', false, $ctx);
+                if (!$fp) {
+                    $streamFailed = true;
+                } else {
+                    while (!feof($fp)) {
+                        $line = fgets($fp, 4096);
+                        if ($line === false) break;
+                        $line = trim($line);
+                        if (!str_starts_with($line, 'data: ')) continue;
+                        $data = substr($line, 6);
+                        if ($data === '[DONE]') break;
+                        $chunk = json_decode($data, true);
+                        $text  = $chunk['choices'][0]['delta']['content'] ?? '';
+                        if ($text !== '') {
+                            $fullContent .= $text;
+                            echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $text]) . "\n\n";
+                            flush();
+                        }
+                    }
+                    fclose($fp);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Mistral stream error (task document upload)', ['error' => $e->getMessage()]);
+                $streamFailed = true;
+            }
+
+            if ($streamFailed) {
+                $fullContent = 'Beklager, jeg kunne ikke analysere dokumentet. Prøv igen om lidt.';
+                echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $fullContent]) . "\n\n";
+                flush();
+            }
+
+            // Parse structured data (same logic as taskChatSend)
+            $displayMessage = $fullContent;
+            $document       = null;
+            $createdTasks   = [];
+
+            // Parse [DOCUMENT]
+            if (preg_match('/\[\/?DOCUMENT\]\s*(.+?)\s*\[\/?DOCUMENT\]/s', $displayMessage, $docMatch)) {
+                $displayMessage = trim(preg_replace('/\[\/?DOCUMENT\]\s*.+?\s*\[\/?DOCUMENT\]/s', '', $displayMessage));
+                $jsonStr = trim($docMatch[1]);
+                $docJson = json_decode($jsonStr, true)
+                    ?? json_decode(str_replace(["\r\n", "\r", "\n"], '\n', $jsonStr), true);
+
+                if (!$docJson && preg_match('/"title"\s*:\s*"([^"]+)"/i', $jsonStr, $tM) &&
+                    preg_match('/"content"\s*:\s*"(.+)"\s*\}$/s', $jsonStr, $cM)) {
+                    $docJson = ['title' => $tM[1], 'content' => str_replace(["\r\n", "\r", "\n"], "\n", trim($cM[1]))];
+                }
+
+                if ($docJson && isset($docJson['title'])) {
+                    $document = ['title' => $docJson['title'], 'content' => $docJson['content'] ?? ''];
+                }
+            }
+
+            // Normalize literal \n sequences in document content to real newlines
+            if ($document) {
+                $document['content'] = str_replace('\n', "\n", $document['content']);
+            }
+
+            // Fallback: detect document without [DOCUMENT] tags (AI skipped format)
+            if (!$document) {
+                $placeholders = preg_match_all('/\[[A-ZÆØÅ][^\[\]0-9]{2,50}\]/', $displayMessage);
+                if ($placeholders >= 3 && mb_strlen($displayMessage) > 300) {
+                    $title = 'Dokument';
+                    $keywordMap = ['brev' => 'Brev', 'aftale' => 'Aftale', 'samværsaftale' => 'Samværsaftale',
+                                   'ansøgning' => 'Ansøgning', 'klage' => 'Klage', 'erklæring' => 'Erklæring',
+                                   'skabelon' => 'Skabelon', 'udkast' => 'Udkast'];
+                    foreach ($keywordMap as $kw => $label) {
+                        if (mb_stripos($displayMessage, $kw) !== false) { $title = $label; break; }
+                    }
+                    $content = str_replace('\n', "\n", $displayMessage);
+                    $document = ['title' => $title, 'content' => $content];
+                    $displayMessage = '';
+                }
+            }
+
+            // Parse [TASKS]
+            if (preg_match('/\[\/?TASKS\]\s*(.+?)\s*\[\/?TASKS\]/s', $displayMessage, $tMatch)) {
+                $displayMessage = trim(preg_replace('/\[\/?TASKS\]\s*.+?\s*\[\/?TASKS\]/s', '', $displayMessage));
+                $rawTasks       = trim($tMatch[1]);
+                $tasksJson      = json_decode($rawTasks, true)
+                    ?? json_decode(str_replace(["\r\n", "\r", "\n"], ' ', $rawTasks), true);
+
+                if ($tasksJson && !isset($tasksJson[0]) && isset($tasksJson['title'])) {
+                    $tasksJson = [$tasksJson];
+                }
+                foreach ((array) $tasksJson as $td) {
+                    if (!isset($td['title'])) continue;
+                    $newTask = Task::create([
+                        'case_id'      => $caseId,
+                        'user_id'      => $user->id,
+                        'title'        => $td['title'],
+                        'description'  => $td['description'] ?? null,
+                        'priority'     => $td['priority'] ?? 'medium',
+                        'task_type'    => $td['type'] ?? 'personlig',
+                        'due_date'     => now()->addDays(isset($td['days']) ? (int) $td['days'] : 7),
+                        'status'       => 'pending',
+                        'ai_generated' => true,
+                        'ai_reasoning' => $td['reasoning'] ?? null,
+                    ]);
+                    $createdTasks[] = $newTask;
+                }
+            }
+
+            // Cleanup
+            $displayMessage = trim(preg_replace('/\[\/?(?:TASKS|DOCUMENT)\]/i', '', $displayMessage));
+            $displayMessage = trim(preg_replace('/\n---\s*$/', '', $displayMessage));
+
+            // Build metadata
+            $metadata = ['task_id' => $taskId];
+            if ($document) $metadata['document'] = $document;
+            if ($createdTasks) {
+                $metadata['tasks'] = collect($createdTasks)->map(fn ($t) => [
+                    'id' => $t->id, 'title' => $t->title, 'description' => $t->description,
+                    'priority' => $t->priority, 'due_date' => $t->due_date?->format('Y-m-d'),
+                ])->toArray();
+            }
+
+            // Save AI response
+            Conversation::create([
+                'case_id'    => $caseId,
+                'user_id'    => $user->id,
+                'role'       => 'assistant',
+                'content'    => $displayMessage,
+                'model_used' => 'mistral-small-latest',
+                'metadata'   => $metadata,
+                'retrieved_chunks' => !empty($metadata['tasks']) || !empty($metadata['document'])
+                    ? array_filter(['tasks' => $metadata['tasks'] ?? null, 'document' => $metadata['document'] ?? null])
+                    : null,
+            ]);
+
+            // Increment AI message counter
+            $user->increment('ai_messages_used');
+
+            // Send done event
+            echo 'data: ' . json_encode([
+                'type'     => 'done',
+                'message'  => $displayMessage,
+                'document' => $document,
+                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                    'id' => $t->id, 'title' => $t->title, 'description' => $t->description,
+                    'priority' => $t->priority, 'due_date' => $t->due_date?->format('Y-m-d'),
+                ]),
+            ]) . "\n\n";
+            flush();
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache, no-store',
+            'X-Accel-Buffering' => 'no',
+            'Connection'        => 'keep-alive',
         ]);
     }
 
@@ -286,6 +662,19 @@ class ChatController extends Controller
         $priority = $priorityLabels[$task->priority] ?? 'Normal';
         $dueDate = $task->due_date ? $task->due_date->format('d/m/Y') : 'Ikke sat';
 
+        $user = auth()->user();
+        $userPersonSection = '';
+        if (!empty($user->work_description) || !empty($user->preferences)) {
+            $userPersonSection = "\n─── BRUGERENS PROFIL ───\n";
+            if (!empty($user->work_description)) {
+                $userPersonSection .= "Hvem er brugeren: {$user->work_description}\n";
+            }
+            if (!empty($user->preferences)) {
+                $userPersonSection .= "Præferencer du skal tage hensyn til i dine svar: {$user->preferences}\n";
+            }
+            $userPersonSection .= "\n";
+        }
+
         return <<<PROMPT
 Du er Aura — en varm og klog støtte til danskere midt i en skilsmisse.
 
@@ -293,7 +682,7 @@ Du hjælper nu brugeren specifikt med denne opgave:
 Titel: {$task->title}
 Beskrivelse: {$task->description}
 Type: {$type} | Prioritet: {$priority} | Frist: {$dueDate}
-
+{$userPersonSection}
 ─── DIN TILGANG ───
 Mød brugeren der hvor de er. Hvis de er frustrerede eller usikre — anerkend det først.
 Forklar tingene som en ven der kender reglerne godt, ikke som en manual.
@@ -312,19 +701,26 @@ Trigger-ord: "kontakt", "ring", "send", "ansøg", "overvej", "bør", "vigtigt", 
 Prioriteter: low/medium/high/critical. Typer: samvaer/bolig/oekonomi/juridisk/kommune/dokument/forsikring/personlig. "days" = dage til frist.
 
 ─── DOKUMENTER ───
-Når brugeren beder om et dokument eller udkast, opret det fuldt ud:
+Når brugeren beder om et dokument, brev, udkast eller skabelon, SKAL du pakke hele indholdet i [DOCUMENT]-tagget.
+Skriv ALDRIG dokumenttekst direkte i chatbeskeden — brug ALTID [DOCUMENT]-tagget til alt dokumentindhold.
 
 [DOCUMENT]
-{"title": "Titel her", "content": "Fuldt dokument med \\n for linjeskift og pladsholdere som [Dit navn]"}
+{"title": "Titel her", "content": "DOKUMENTTITEL\n\nKære [Modtager],\n\n[Fuldt dokument her]\n\nMed venlig hilsen\n[Dit navn]"}
 [/DOCUMENT]
 
-Alle tekster på dansk. Afvis aldrig at oprette dokumenter eller opgaver.
+Regler:
+- Brug [DOCUMENT] ... [/DOCUMENT] til ALT dokumentindhold — ingen undtagelser
+- Brug \\n for linjeskift inde i content-strengen (JSON-format)
+- Inkluder altid pladsholdere som [Dit navn], [Dato], [Adresse] osv.
+- Skriv det KOMPLETTE dokument — aldrig kun en kort skabelon
+- Alle tekster på dansk
+- Afvis aldrig at oprette dokumenter
 
 {$this->buildKnowledgeSection($ragContext)}
 PROMPT;
     }
 
-    public function send(Request $request): JsonResponse
+    public function send(Request $request): \Symfony\Component\HttpFoundation\Response
     {
         $validated = $request->validate([
             'message' => 'required|string|max:2000',
@@ -333,7 +729,7 @@ PROMPT;
 
         $user = auth()->user();
 
-        // Enforce AI message limit
+        // Enforce AI message limit (return JSON before opening stream)
         $limit = $user->ai_messages_limit ?? 50;
         $used  = $user->ai_messages_used  ?? 0;
         if ($used >= $limit) {
@@ -375,163 +771,14 @@ PROMPT;
         // Count prior AI turns to determine conversation phase
         $aiTurn = $history->where('role', 'assistant')->count();
 
-        // Generate AI response
-        try {
-            $messages = $this->formatHistory($history);
-            array_unshift($messages, [
-                'role' => 'system',
-                'content' => $this->getSystemPrompt($case, $ragContext, $aiTurn),
-            ]);
+        // Build Mistral messages array (capture vars for stream closure)
+        $mistralMessages = $this->formatHistory($history);
+        array_unshift($mistralMessages, [
+            'role' => 'system',
+            'content' => $this->getSystemPrompt($case, $ragContext, $aiTurn),
+        ]);
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.mistral.key'),
-                'Content-Type' => 'application/json',
-            ])->post('https://api.mistral.ai/v1/chat/completions', [
-                'model' => 'mistral-small-latest',
-                'messages' => $messages,
-                'max_tokens' => 3000,
-            ]);
-
-            if ($response->successful()) {
-                $aiMessage = $response->json('choices.0.message.content');
-            } else {
-                Log::error('Mistral API error', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-                $aiMessage = "Beklager, jeg kunne ikke generere et svar lige nu. Prøv igen om lidt.";
-            }
-        } catch (\Exception $e) {
-            Log::error('Mistral exception', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            $aiMessage = "Beklager, jeg kunne ikke generere et svar lige nu. Prøv igen om lidt.";
-        }
-
-        // Parse structured data from AI response
-        $displayMessage = $aiMessage;
-        $document = null;
-        $createdTasks = [];
-
-        Log::info('RAW AI RESPONSE', ['raw' => $aiMessage]);
-
-        // Parse document: capture everything between DOCUMENT tags, then json_decode
-        if (preg_match('/\[\/?DOCUMENT\]\s*(.+?)\s*\[\/?DOCUMENT\]/s', $displayMessage, $docMatch)) {
-            $displayMessage = trim(preg_replace('/\[\/?DOCUMENT\]\s*.+?\s*\[\/?DOCUMENT\]/s', '', $displayMessage));
-            $jsonStr = trim($docMatch[1]);
-            $docJson = json_decode($jsonStr, true);
-
-            // If decode failed, fix unescaped newlines in JSON string values and retry
-            if (!$docJson) {
-                $fixed = str_replace(["\r\n", "\r", "\n"], '\n', $jsonStr);
-                $docJson = json_decode($fixed, true);
-            }
-
-            // Last resort: extract title and content via regex
-            if (!$docJson) {
-                if (preg_match('/"title"\s*:\s*"([^"]+)"/i', $jsonStr, $tMatch) &&
-                    preg_match('/"content"\s*:\s*"(.+)"\s*\}$/s', $jsonStr, $cMatch)) {
-                    $docJson = [
-                        'title' => $tMatch[1],
-                        'content' => str_replace(["\r\n", "\r", "\n"], "\n", trim($cMatch[1])),
-                    ];
-                }
-            }
-
-            Log::info('DOCUMENT JSON DECODE', ['docJson' => $docJson ? 'OK' : 'FAILED', 'jsonError' => json_last_error_msg()]);
-
-            if ($docJson && isset($docJson['title'])) {
-                $document = [
-                    'title' => $docJson['title'],
-                    'content' => $docJson['content'] ?? '',
-                ];
-            }
-        }
-
-        Log::info('DOCUMENT PARSE RESULT', ['document' => $document, 'hasTag' => str_contains($aiMessage, 'DOCUMENT')]);
-
-        // Parse tasks: capture everything between TASKS tags, then json_decode
-        if (preg_match('/\[\/?TASKS\]\s*(.+?)\s*\[\/?TASKS\]/s', $displayMessage, $matches)) {
-            $displayMessage = trim(preg_replace('/\[\/?TASKS\]\s*.+?\s*\[\/?TASKS\]/s', '', $displayMessage));
-            $rawTasks = trim($matches[1]);
-
-            Log::info('RAW TASKS JSON', ['raw' => $rawTasks]);
-
-            $tasksJson = json_decode($rawTasks, true);
-
-            // If decode failed, fix unescaped newlines and retry
-            if (!is_array($tasksJson)) {
-                $fixedTasks = str_replace(["\r\n", "\r", "\n"], '\n', $rawTasks);
-                $tasksJson = json_decode($fixedTasks, true);
-            }
-
-            if (!is_array($tasksJson)) {
-                // Try newline-separated JSON objects
-                $tasksJson = [];
-                foreach (preg_split('/\n/', $rawTasks) as $line) {
-                    $line = trim($line, " \t\n\r,");
-                    if ($line && str_starts_with($line, '{')) {
-                        $parsed = json_decode($line, true);
-                        if (!$parsed) {
-                            $parsed = json_decode(str_replace(["\r\n", "\r", "\n"], '\n', $line), true);
-                        }
-                        if ($parsed) {
-                            $tasksJson[] = $parsed;
-                        }
-                    }
-                }
-            }
-            if ($tasksJson && !isset($tasksJson[0]) && isset($tasksJson['title'])) {
-                $tasksJson = [$tasksJson];
-            }
-
-            Log::info('TASKS PARSE RESULT', ['count' => count($tasksJson), 'tasks' => $tasksJson]);
-
-            foreach ($tasksJson as $taskData) {
-                if (!isset($taskData['title'])) continue;
-                $task = Task::create([
-                    'case_id' => $case->id,
-                    'user_id' => $user->id,
-                    'title' => $taskData['title'],
-                    'description' => $taskData['description'] ?? null,
-                    'task_type' => $taskData['type'] ?? 'action',
-                    'priority' => $taskData['priority'] ?? 'medium',
-                    'due_date' => isset($taskData['days']) ? now()->addDays((int) $taskData['days']) : null,
-                    'status' => 'pending',
-                    'ai_generated' => true,
-                    'ai_reasoning' => $taskData['reasoning'] ?? null,
-                ]);
-                $createdTasks[] = $task;
-            }
-        }
-
-        // Final cleanup: remove any leftover tags and stray separators
-        $displayMessage = trim(preg_replace('/\[\/?(?:TASKS|DOCUMENT)\]/i', '', $displayMessage));
-        $displayMessage = trim(preg_replace('/\n---\s*$/', '', $displayMessage));
-
-        // Fallback task generation: if tasks are expected (phase >= 3) but none were parsed,
-        // make a separate focused API call that ONLY returns JSON tasks.
-        if ($aiTurn >= 3 && empty($createdTasks)) {
-            $createdTasks = $this->generateTasksFallback($history, $case, $user);
-        }
-
-        // Build metadata for persistence (so document/tasks show on page reload)
-        $metadata = [];
-        if ($document) {
-            $metadata['document'] = $document;
-        }
-        if ($createdTasks) {
-            $metadata['tasks'] = collect($createdTasks)->map(fn ($t) => [
-                'id' => $t->id,
-                'title' => $t->title,
-                'description' => $t->description,
-                'priority' => $t->priority,
-                'due_date' => $t->due_date?->format('Y-m-d'),
-            ])->toArray();
-        }
-
-        // Build retrieved_chunks data (actual RAG chunks used for this response)
+        // Build retrieved_chunks data for persistence
         $retrievedChunksData = array_map(fn($r) => [
             'id'       => $r['chunk']->id,
             'title'    => $r['chunk']->source_title,
@@ -540,7 +787,239 @@ PROMPT;
             'excerpt'  => mb_substr($r['chunk']->content, 0, 200),
         ], $ragResults);
 
-        // Save AI response with metadata
+        // Stream the response via SSE
+        return response()->stream(function () use (
+            $mistralMessages, $case, $user, $aiTurn,
+            $history, $retrievedChunksData, $validated
+        ) {
+            // Disable all output buffering so chunks reach the client immediately
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            // Call Mistral with stream=true
+            $payload = json_encode([
+                'model'      => 'mistral-small-latest',
+                'messages'   => $mistralMessages,
+                'max_tokens' => 3000,
+                'stream'     => true,
+            ]);
+
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'        => 'POST',
+                    'header'        => "Authorization: Bearer " . config('services.mistral.key') . "\r\n"
+                                     . "Content-Type: application/json\r\n",
+                    'content'       => $payload,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+
+            $fullContent = '';
+            $streamFailed = false;
+
+            try {
+                $fp = fopen('https://api.mistral.ai/v1/chat/completions', 'r', false, $ctx);
+
+                if (!$fp) {
+                    $streamFailed = true;
+                } else {
+                    while (!feof($fp)) {
+                        $line = fgets($fp, 4096);
+                        if ($line === false) break;
+                        $line = trim($line);
+                        if (!str_starts_with($line, 'data: ')) continue;
+                        $data = substr($line, 6);
+                        if ($data === '[DONE]') break;
+
+                        $chunk = json_decode($data, true);
+                        $text  = $chunk['choices'][0]['delta']['content'] ?? '';
+                        if ($text !== '') {
+                            $fullContent .= $text;
+                            echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $text]) . "\n\n";
+                            flush();
+                        }
+                    }
+                    fclose($fp);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Mistral stream error', ['error' => $e->getMessage()]);
+                $streamFailed = true;
+            }
+
+            if ($streamFailed) {
+                $fullContent = 'Beklager, jeg kunne ikke generere et svar lige nu. Prøv igen om lidt.';
+                echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $fullContent]) . "\n\n";
+                flush();
+            }
+
+            // ── Parse structured data from full response ──────────────────────
+            [$displayMessage, $document, $createdTasks] = $this->parseAndPersist(
+                $fullContent, $case, $user, $aiTurn, $history,
+                $retrievedChunksData, $validated['message']
+            );
+
+            // Send final done event with tasks + document
+            echo 'data: ' . json_encode([
+                'type'     => 'done',
+                'message'  => $displayMessage,
+                'case_id'  => $case->id,
+                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                    'id'          => $t->id,
+                    'title'       => $t->title,
+                    'description' => $t->description,
+                    'priority'    => $t->priority,
+                    'due_date'    => $t->due_date?->format('Y-m-d'),
+                ]),
+                'document' => $document,
+            ]) . "\n\n";
+            flush();
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache, no-store',
+            'X-Accel-Buffering' => 'no',
+            'Connection'        => 'keep-alive',
+        ]);
+    }
+
+    /**
+     * Parse [TASKS] / [DOCUMENT] tags from AI output, save conversation, track usage, generate title.
+     * Returns [$displayMessage, $document, $createdTasks].
+     */
+    private function parseAndPersist(
+        string $aiMessage,
+        CaseModel $case,
+        $user,
+        int $aiTurn,
+        $history,
+        array $retrievedChunksData,
+        string $originalUserMessage
+    ): array {
+        $displayMessage = $aiMessage;
+        $document       = null;
+        $createdTasks   = [];
+
+        Log::info('RAW AI RESPONSE', ['raw' => $aiMessage]);
+
+        // ── Parse [DOCUMENT] ──────────────────────────────────────────────────
+        if (preg_match('/\[\/?DOCUMENT\]\s*(.+?)\s*\[\/?DOCUMENT\]/s', $displayMessage, $docMatch)) {
+            $displayMessage = trim(preg_replace('/\[\/?DOCUMENT\]\s*.+?\s*\[\/?DOCUMENT\]/s', '', $displayMessage));
+            $jsonStr = trim($docMatch[1]);
+            $docJson = json_decode($jsonStr, true);
+
+            if (!$docJson) {
+                $docJson = json_decode(str_replace(["\r\n", "\r", "\n"], '\n', $jsonStr), true);
+            }
+            if (!$docJson) {
+                if (preg_match('/"title"\s*:\s*"([^"]+)"/i', $jsonStr, $tMatch) &&
+                    preg_match('/"content"\s*:\s*"(.+)"\s*\}$/s', $jsonStr, $cMatch)) {
+                    $docJson = [
+                        'title'   => $tMatch[1],
+                        'content' => str_replace(["\r\n", "\r", "\n"], "\n", trim($cMatch[1])),
+                    ];
+                }
+            }
+
+            if ($docJson && isset($docJson['title'])) {
+                $document = ['title' => $docJson['title'], 'content' => $docJson['content'] ?? ''];
+            }
+        }
+
+        // Normalize literal \n sequences in document content to real newlines
+        if ($document) {
+            $document['content'] = str_replace('\n', "\n", $document['content']);
+        }
+
+        // Fallback: detect document without [DOCUMENT] tags (AI skipped format)
+        if (!$document) {
+            $placeholders = preg_match_all('/\[[A-ZÆØÅ][^\[\]0-9]{2,50}\]/', $displayMessage);
+            if ($placeholders >= 3 && mb_strlen($displayMessage) > 300) {
+                $title = 'Dokument';
+                $keywordMap = ['brev' => 'Brev', 'aftale' => 'Aftale', 'samværsaftale' => 'Samværsaftale',
+                               'ansøgning' => 'Ansøgning', 'klage' => 'Klage', 'erklæring' => 'Erklæring',
+                               'skabelon' => 'Skabelon', 'udkast' => 'Udkast'];
+                foreach ($keywordMap as $kw => $label) {
+                    if (mb_stripos($displayMessage, $kw) !== false) { $title = $label; break; }
+                }
+                $content = str_replace('\n', "\n", $displayMessage);
+                $document = ['title' => $title, 'content' => $content];
+                $displayMessage = '';
+            }
+        }
+
+        // ── Parse [TASKS] ─────────────────────────────────────────────────────
+        if (preg_match('/\[\/?TASKS\]\s*(.+?)\s*\[\/?TASKS\]/s', $displayMessage, $matches)) {
+            $displayMessage = trim(preg_replace('/\[\/?TASKS\]\s*.+?\s*\[\/?TASKS\]/s', '', $displayMessage));
+            $rawTasks       = trim($matches[1]);
+
+            Log::info('RAW TASKS JSON', ['raw' => $rawTasks]);
+
+            $tasksJson = json_decode($rawTasks, true);
+            if (!is_array($tasksJson)) {
+                $tasksJson = json_decode(str_replace(["\r\n", "\r", "\n"], '\n', $rawTasks), true);
+            }
+            if (!is_array($tasksJson)) {
+                $tasksJson = [];
+                foreach (preg_split('/\n/', $rawTasks) as $line) {
+                    $line = trim($line, " \t\n\r,");
+                    if ($line && str_starts_with($line, '{')) {
+                        $parsed = json_decode($line, true)
+                            ?? json_decode(str_replace(["\r\n", "\r", "\n"], '\n', $line), true);
+                        if ($parsed) $tasksJson[] = $parsed;
+                    }
+                }
+            }
+            if ($tasksJson && !isset($tasksJson[0]) && isset($tasksJson['title'])) {
+                $tasksJson = [$tasksJson];
+            }
+
+            foreach ((array) $tasksJson as $taskData) {
+                if (!isset($taskData['title'])) continue;
+                $t = Task::create([
+                    'case_id'      => $case->id,
+                    'user_id'      => $user->id,
+                    'title'        => $taskData['title'],
+                    'description'  => $taskData['description'] ?? null,
+                    'task_type'    => $taskData['type'] ?? 'action',
+                    'priority'     => $taskData['priority'] ?? 'medium',
+                    'due_date'     => isset($taskData['days']) ? now()->addDays((int) $taskData['days']) : null,
+                    'status'       => 'pending',
+                    'ai_generated' => true,
+                    'ai_reasoning' => $taskData['reasoning'] ?? null,
+                ]);
+                $createdTasks[] = $t;
+            }
+        }
+
+        // ── Cleanup ───────────────────────────────────────────────────────────
+        $displayMessage = trim(preg_replace('/\[\/?(?:TASKS|DOCUMENT)\]/i', '', $displayMessage));
+        $displayMessage = trim(preg_replace('/\n---\s*$/', '', $displayMessage));
+
+        // Fallback task generation when phase >= 3 and no tasks parsed
+        if ($aiTurn >= 3 && empty($createdTasks)) {
+            $createdTasks = $this->generateTasksFallback($history, $case, $user);
+        }
+
+        // ── Build metadata ────────────────────────────────────────────────────
+        $metadata = [];
+        if ($document) {
+            $metadata['document'] = $document;
+        }
+        if ($createdTasks) {
+            $metadata['tasks'] = collect($createdTasks)->map(fn ($t) => [
+                'id'          => $t->id,
+                'title'       => $t->title,
+                'description' => $t->description,
+                'priority'    => $t->priority,
+                'due_date'    => $t->due_date?->format('Y-m-d'),
+            ])->toArray();
+        }
+
+        // ── Persist conversation ──────────────────────────────────────────────
         Conversation::create([
             'case_id'          => $case->id,
             'user_id'          => $user->id,
@@ -551,27 +1030,19 @@ PROMPT;
             'metadata'         => !empty($metadata) ? $metadata : null,
         ]);
 
-        // Track usage
+        // Track usage + generate case title
         $user->increment('ai_messages_used');
 
-        // Generate title for new cases (first message)
         if (!$case->title) {
-            $this->generateTitle($case, $validated['message']);
+            $this->generateTitle($case, $originalUserMessage);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => $displayMessage,
-            'case_id' => $case->id,
-            'tasks' => collect($createdTasks)->map(fn ($t) => [
-                'id' => $t->id,
-                'title' => $t->title,
-                'description' => $t->description,
-                'priority' => $t->priority,
-                'due_date' => $t->due_date?->format('Y-m-d'),
-            ]),
-            'document' => $document,
-        ]);
+        // Send real-time notification om nye opgaver
+        if (!empty($createdTasks)) {
+            \App\Services\NotificationService::notifyNewTasks($user, $createdTasks);
+        }
+
+        return [$displayMessage, $document, $createdTasks];
     }
 
     private function generateTasksFallback($history, CaseModel $case, $user): array
@@ -681,6 +1152,19 @@ PROMPT;
         $hasProperty = $case->has_shared_property ? 'Ja' : 'Nej';
         $phaseInstruction = $this->getPhaseInstruction($aiTurn);
 
+        $user = auth()->user();
+        $userPersonSection = '';
+        if (!empty($user->work_description) || !empty($user->preferences)) {
+            $userPersonSection = "\n─── BRUGERENS PROFIL ───\n";
+            if (!empty($user->work_description)) {
+                $userPersonSection .= "Hvem er brugeren: {$user->work_description}\n";
+            }
+            if (!empty($user->preferences)) {
+                $userPersonSection .= "Præferencer du skal tage hensyn til i dine svar: {$user->preferences}\n";
+            }
+            $userPersonSection .= "\n";
+        }
+
         return <<<PROMPT
 Du er Aura — en varm, menneskelig støtte til danskere midt i en skilsmisse eller et samlivsbrud.
 
@@ -746,6 +1230,7 @@ Du er brugerens støtte mod situationen — og det kræver at du er ærlig.
 Status: {$case->status}
 Har børn: {$hasChildren}
 Fælles ejendom: {$hasProperty}
+{$userPersonSection}
 
 ─── HVAD DU IKKE GØR ───
 ❌ Anbefaler specifikke advokater ved navn
@@ -756,14 +1241,19 @@ Fælles ejendom: {$hasProperty}
 ❌ Hjælper med at formulere beskeder der eskalerer konflikter
 
 ─── DOKUMENTER ───
-Når brugeren beder om et dokument, udkast eller skabelon, opret det fuldt ud med [DOCUMENT] tagget:
+Når brugeren beder om et dokument, brev, udkast eller skabelon, SKAL du pakke hele indholdet i [DOCUMENT]-tagget.
+Skriv ALDRIG dokumenttekst direkte i chatbeskeden — brug ALTID [DOCUMENT]-tagget til alt dokumentindhold.
 
 [DOCUMENT]
-{"title": "Samværsaftale", "content": "SAMVÆRSAFTALE\n\n[Fuldt dokument her]"}
+{"title": "Samværsaftale", "content": "SAMVÆRSAFTALE\n\n[Fuldt dokument her med pladsholdere]"}
 [/DOCUMENT]
 
-Skriv ALTID det komplette dokument med pladsholdere som [Dit navn], [Dato] osv.
-Brug \\n for linjeskift. Alle tekster på dansk.
+Regler:
+- Brug [DOCUMENT] ... [/DOCUMENT] til ALT dokumentindhold — ingen undtagelser
+- Brug \\n for linjeskift inde i content-strengen (JSON-format)
+- Inkluder altid pladsholdere som [Dit navn], [Dato], [Adresse] osv.
+- Skriv det KOMPLETTE dokument — aldrig kun en kort skabelon
+- Alle tekster på dansk
 
 ─── OPGAVER FORMAT ───
 Skriv din besked FØRST. Tilføj derefter opgaver i slutningen:
@@ -1217,6 +1707,362 @@ SKILSMISSEPAPIRER VIA FAMILIERETSHUSET:
 LAW;
     }
 
+    public function uploadDocument(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $request->validate([
+            'file'    => 'required|file|max:10240|mimes:pdf,txt,jpg,jpeg,png',
+            'case_id' => 'nullable|exists:cases,id',
+        ]);
+
+        $file = $request->file('file');
+        if (!$this->validateFileMagicBytes($file)) {
+            return response()->json(['message' => 'Filtypen matcher ikke indholdet.'], 422);
+        }
+
+        $user = auth()->user();
+
+        $limit = $user->ai_messages_limit ?? 50;
+        $used  = $user->ai_messages_used  ?? 0;
+        if ($used >= $limit) {
+            return response()->json([
+                'error'   => 'message_limit_reached',
+                'message' => 'Du har brugt alle dine AI-beskeder denne måned. Opgradér din plan for at fortsætte.',
+            ], 429);
+        }
+
+        $originalFilename = preg_replace('/[^\w\s\-\.]/', '_', $file->getClientOriginalName());
+        $mimeType         = $file->getMimeType();
+        $extension        = strtolower($file->getClientOriginalExtension());
+        $filename         = uniqid() . '.' . $extension;
+        $storagePath      = "documents/{$user->id}/{$filename}";
+        $absolutePath     = storage_path("app/{$storagePath}");
+
+        Storage::put($storagePath, file_get_contents($file->getRealPath()));
+
+        // Create or load case
+        if (!empty($request->input('case_id'))) {
+            $case = CaseModel::where('id', $request->input('case_id'))
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+        } else {
+            $case = CaseModel::create([
+                'user_id'           => $user->id,
+                'case_type'         => 'divorce',
+                'situation_summary' => "Uploadet dokument: {$originalFilename}",
+                'status'            => 'active',
+            ]);
+        }
+
+        // Extract text
+        $extractedText = '';
+        try {
+            if ($extension === 'pdf') {
+                $parser        = new \Smalot\PdfParser\Parser();
+                $pdfDoc        = $parser->parseFile($absolutePath);
+                $extractedText = $pdfDoc->getText();
+
+                // Fallback for scanned PDFs: convert first page to image → vision OCR
+                if (empty(trim($extractedText))) {
+                    $extractedText = $this->extractTextFromScannedPdf($absolutePath);
+                }
+            } elseif ($extension === 'txt') {
+                $raw = file_get_contents($absolutePath);
+                // Detect and convert UTF-16 (LE/BE) — common for Windows-created TXT files
+                if (str_starts_with($raw, "\xFF\xFE")) {
+                    $raw = mb_convert_encoding(substr($raw, 2), 'UTF-8', 'UTF-16LE');
+                } elseif (str_starts_with($raw, "\xFE\xFF")) {
+                    $raw = mb_convert_encoding(substr($raw, 2), 'UTF-8', 'UTF-16BE');
+                }
+                $extractedText = $raw;
+            } else {
+                // JPG / PNG — use Mistral vision
+                $base64   = base64_encode(file_get_contents($absolutePath));
+                $mimeVis  = in_array($extension, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png';
+                $extractedText = $this->extractTextFromImage($base64, $mimeVis);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Document text extraction failed', ['error' => $e->getMessage()]);
+        }
+
+        $extractedText = mb_substr(trim($extractedText), 0, 8000);
+
+        // Save Document record
+        \App\Models\Document::create([
+            'user_id'           => $user->id,
+            'case_id'           => $case->id,
+            'filename'          => $filename,
+            'original_filename' => $originalFilename,
+            'mime_type'         => $mimeType,
+            'file_size_bytes'   => $file->getSize(),
+            'storage_path'      => $storagePath,
+            'document_type'     => 'upload',
+            'processing_status' => 'completed',
+            'extracted_text'    => $extractedText,
+        ]);
+
+        // Save user turn in conversation
+        $userContent = "📎 Uploadet dokument: **{$originalFilename}**";
+        Conversation::create([
+            'case_id' => $case->id,
+            'user_id' => $user->id,
+            'role'    => 'user',
+            'content' => $userContent,
+        ]);
+
+        // Build conversation history & AI turn count
+        $history = $this->getHistory($case);
+        $aiTurn  = $history->where('role', 'assistant')->count();
+
+        // Inject document text into system prompt
+        $truncated = mb_substr($extractedText, 0, 4000);
+        $noTextNote = empty($truncated)
+            ? "\n\nBemærk: Ingen tekst kunne udtrækkes fra denne fil. Dokumentet kan være krypteret eller i et format der ikke understøttes."
+            : '';
+
+        $docSection = <<<SECTION
+
+
+─── UPLOADET DOKUMENT ───
+Brugeren har uploadet dokumentet: "{$originalFilename}"
+
+Indhold:
+{$truncated}{$noTextNote}
+
+Analyser dokumentet grundigt. Opsummer hvad det handler om, fremhæv vigtige punkter, frister og handlingspunkter — og opret relevante opgaver.
+SECTION;
+
+        $systemPrompt    = $this->getSystemPrompt($case, '', $aiTurn) . $docSection;
+        $mistralMessages = $this->formatHistory($history);
+        array_unshift($mistralMessages, ['role' => 'system', 'content' => $systemPrompt]);
+
+        $caseId = $case->id;
+
+        return response()->stream(function () use (
+            $mistralMessages, $case, $user, $aiTurn, $history, $originalFilename, $caseId
+        ) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            $payload = json_encode([
+                'model'      => 'mistral-small-latest',
+                'messages'   => $mistralMessages,
+                'max_tokens' => 3000,
+                'stream'     => true,
+            ]);
+
+            $ctx = stream_context_create([
+                'http' => [
+                    'method'        => 'POST',
+                    'header'        => "Authorization: Bearer " . config('services.mistral.key') . "\r\n"
+                                     . "Content-Type: application/json\r\n",
+                    'content'       => $payload,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+            ]);
+
+            $fullContent  = '';
+            $streamFailed = false;
+
+            try {
+                $fp = fopen('https://api.mistral.ai/v1/chat/completions', 'r', false, $ctx);
+                if (!$fp) {
+                    $streamFailed = true;
+                } else {
+                    while (!feof($fp)) {
+                        $line = fgets($fp, 4096);
+                        if ($line === false) break;
+                        $line = trim($line);
+                        if (!str_starts_with($line, 'data: ')) continue;
+                        $data = substr($line, 6);
+                        if ($data === '[DONE]') break;
+                        $chunk = json_decode($data, true);
+                        $text  = $chunk['choices'][0]['delta']['content'] ?? '';
+                        if ($text !== '') {
+                            $fullContent .= $text;
+                            echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $text]) . "\n\n";
+                            flush();
+                        }
+                    }
+                    fclose($fp);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Mistral stream error (document upload)', ['error' => $e->getMessage()]);
+                $streamFailed = true;
+            }
+
+            if ($streamFailed) {
+                $fullContent = 'Beklager, jeg kunne ikke analysere dokumentet. Prøv igen om lidt.';
+                echo 'data: ' . json_encode(['type' => 'chunk', 'text' => $fullContent]) . "\n\n";
+                flush();
+            }
+
+            [$displayMessage, $aiDocument, $createdTasks] = $this->parseAndPersist(
+                $fullContent, $case, $user, $aiTurn, $history, [], $originalFilename
+            );
+
+            echo 'data: ' . json_encode([
+                'type'     => 'done',
+                'message'  => $displayMessage,
+                'case_id'  => $caseId,
+                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                    'id'          => $t->id,
+                    'title'       => $t->title,
+                    'description' => $t->description,
+                    'priority'    => $t->priority,
+                    'due_date'    => $t->due_date?->format('Y-m-d'),
+                ]),
+                'document' => $aiDocument,
+            ]) . "\n\n";
+            flush();
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache, no-store',
+            'X-Accel-Buffering' => 'no',
+            'Connection'        => 'keep-alive',
+        ]);
+    }
+
+    /**
+     * Convert the first page of a scanned PDF to JPEG and run vision OCR.
+     * Tries Imagick first, then Ghostscript via exec().
+     */
+    private function extractTextFromScannedPdf(string $pdfPath): string
+    {
+        $jpegData = null;
+
+        // Method 1: PHP Imagick extension (+ Ghostscript installed on system)
+        if (extension_loaded('imagick')) {
+            try {
+                $im = new \Imagick();
+                $im->setResolution(150, 150);
+                $im->readImage($pdfPath . '[0]'); // first page only
+                $im->setImageFormat('jpeg');
+                $im->setImageCompressionQuality(85);
+                $jpegData = $im->getImageBlob();
+                $im->clear();
+            } catch (\Throwable $e) {
+                Log::warning('Imagick PDF→JPEG failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Method 2: Ghostscript via exec() — works on Windows XAMPP if GS is installed
+        if (!$jpegData && function_exists('exec')) {
+            $tmpJpeg = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('pdf_ocr_') . '.jpg';
+
+            // Locate gswin64c.exe (tries common Windows install paths)
+            $gsBin = $this->findGhostscript();
+
+            if ($gsBin) {
+                $cmd = $gsBin
+                    . ' -dNOPAUSE -dBATCH -sDEVICE=jpeg -dFirstPage=1 -dLastPage=1'
+                    . ' -r150 -dJPEGQ=85'
+                    . ' -sOutputFile=' . escapeshellarg($tmpJpeg)
+                    . ' ' . escapeshellarg($pdfPath)
+                    . ' 2>&1';
+
+                exec($cmd, $output, $code);
+
+                if ($code === 0 && file_exists($tmpJpeg) && filesize($tmpJpeg) > 0) {
+                    $jpegData = file_get_contents($tmpJpeg);
+                } else {
+                    Log::warning('Ghostscript PDF→JPEG failed', [
+                        'code'   => $code,
+                        'output' => implode("\n", $output),
+                    ]);
+                }
+
+                if (file_exists($tmpJpeg)) {
+                    unlink($tmpJpeg);
+                }
+            }
+        }
+
+        if (!$jpegData) {
+            return '';
+        }
+
+        return $this->extractTextFromImage(base64_encode($jpegData), 'image/jpeg');
+    }
+
+    /** Find Ghostscript binary on Windows or Unix. */
+    private function findGhostscript(): ?string
+    {
+        // Unix / Linux / Mac
+        if (PHP_OS_FAMILY !== 'Windows') {
+            foreach (['gs', '/usr/bin/gs', '/usr/local/bin/gs'] as $bin) {
+                exec("which {$bin} 2>/dev/null", $out, $code);
+                if ($code === 0 && !empty($out[0])) return $bin;
+            }
+            return null;
+        }
+
+        // Windows — check common GhostScript install directories
+        $programFiles = [
+            getenv('ProgramFiles')       ?: 'C:\\Program Files',
+            getenv('ProgramFiles(x86)')  ?: 'C:\\Program Files (x86)',
+        ];
+
+        foreach ($programFiles as $pf) {
+            $gsDir = $pf . '\\gs';
+            if (!is_dir($gsDir)) continue;
+
+            // Iterate version folders (e.g. gs10.04.0, gs9.56.1)
+            $versions = glob($gsDir . '\\gs*', GLOB_ONLYDIR) ?: [];
+            // Newest first
+            rsort($versions);
+
+            foreach ($versions as $vDir) {
+                $candidate = $vDir . '\\bin\\gswin64c.exe';
+                if (file_exists($candidate)) return '"' . $candidate . '"';
+                $candidate32 = $vDir . '\\bin\\gswin32c.exe';
+                if (file_exists($candidate32)) return '"' . $candidate32 . '"';
+            }
+        }
+
+        return null;
+    }
+
+    private function extractTextFromImage(string $base64, string $mimeType): string
+    {
+        $payload = json_encode([
+            'model'    => 'pixtral-12b-2409',
+            'messages' => [[
+                'role'    => 'user',
+                'content' => [
+                    [
+                        'type'      => 'image_url',
+                        'image_url' => ['url' => "data:{$mimeType};base64,{$base64}"],
+                    ],
+                    [
+                        'type' => 'text',
+                        'text' => 'Beskriv og transskribér al tekst du kan se i dette billede. Returner kun teksten fra billedet.',
+                    ],
+                ],
+            ]],
+            'max_tokens' => 1500,
+        ]);
+
+        $ctx = stream_context_create([
+            'http' => [
+                'method'        => 'POST',
+                'header'        => "Authorization: Bearer " . config('services.mistral.key') . "\r\n"
+                                 . "Content-Type: application/json\r\n",
+                'content'       => $payload,
+                'timeout'       => 25,
+                'ignore_errors' => true,
+            ],
+            'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+        ]);
+
+        $response = @file_get_contents('https://api.mistral.ai/v1/chat/completions', false, $ctx);
+        if (!$response) return '';
+
+        $data = json_decode($response, true);
+        return $data['choices'][0]['message']['content'] ?? '';
+    }
+
     public function destroyCase(CaseModel $case): JsonResponse
     {
         $user = auth()->user();
@@ -1279,5 +2125,60 @@ LAW;
         }
 
         return response()->json(['success' => true, 'deleted' => $cases->count()]);
+    }
+
+    /**
+     * Validate that uploaded file content matches its claimed extension using magic bytes.
+     */
+    private function validateFileMagicBytes(\Illuminate\Http\UploadedFile $file): bool
+    {
+        $path = $file->getRealPath();
+        if (!$path || !file_exists($path)) {
+            return false;
+        }
+
+        $handle = fopen($path, 'rb');
+        if (!$handle) {
+            return false;
+        }
+        $header = fread($handle, 12);
+        fclose($handle);
+
+        if (strlen($header) < 4) {
+            // Very small file — allow only .txt
+            $ext = strtolower($file->getClientOriginalExtension());
+            return $ext === 'txt';
+        }
+
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        return match ($ext) {
+            'pdf'        => str_starts_with($header, '%PDF'),
+            'jpg', 'jpeg' => ord($header[0]) === 0xFF && ord($header[1]) === 0xD8 && ord($header[2]) === 0xFF,
+            'png'        => str_starts_with($header, "\x89PNG"),
+            'txt'        => $this->looksLikeText($path),
+            default      => false,
+        };
+    }
+
+    private function looksLikeText(string $path): bool
+    {
+        $sample = file_get_contents($path, false, null, 0, 1024);
+        if ($sample === false) {
+            return false;
+        }
+        // Allow UTF-8, UTF-16 BOM, and plain ASCII; reject if >10% non-text bytes
+        if (str_starts_with($sample, "\xFF\xFE") || str_starts_with($sample, "\xFE\xFF")) {
+            return true; // UTF-16
+        }
+        $nonText = 0;
+        $len = strlen($sample);
+        for ($i = 0; $i < $len; $i++) {
+            $byte = ord($sample[$i]);
+            if ($byte < 0x09 || ($byte > 0x0D && $byte < 0x20 && $byte !== 0x1B)) {
+                $nonText++;
+            }
+        }
+        return ($nonText / max($len, 1)) < 0.10;
     }
 }

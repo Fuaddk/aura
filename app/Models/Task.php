@@ -2,12 +2,22 @@
 
 namespace App\Models;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        $flush = fn (Task $task) => HandleInertiaRequests::flushTaskCache($task->user_id);
+
+        static::created($flush);
+        static::updated($flush);
+        static::deleted($flush);
+    }
 
     protected $fillable = [
         'case_id',

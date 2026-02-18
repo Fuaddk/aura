@@ -8,6 +8,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -17,11 +18,22 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+        ]);
+
         // Stripe webhook must bypass CSRF verification
         $middleware->validateCsrfTokens(except: [
             'stripe/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Integrate Sentry error tracking
+        if (config('sentry.dsn')) {
+            $exceptions->reportable(function (Throwable $e) {
+                if (app()->bound('sentry')) {
+                    app('sentry')->captureException($e);
+                }
+            });
+        }
     })->create();

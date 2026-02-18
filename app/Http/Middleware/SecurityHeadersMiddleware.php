@@ -46,12 +46,6 @@ class SecurityHeadersMiddleware
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        // Prevent ALL PHP responses from being stored in browser cache or bfcache.
-        // This includes login page (so back-button after logout hits server, not cache).
-        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
-        $response->headers->set('Pragma', 'no-cache');
-        $response->headers->set('Expires', '0');
-
         return $response;
     }
 }

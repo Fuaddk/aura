@@ -15,10 +15,13 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        <!-- Prevent bfcache: back-button after logout must hit the server, not a cached page -->
+        <!-- Security: force full server request on any back/forward navigation.
+             Inertia.js caches pages in sessionStorage and restores them without
+             hitting the server, which would bypass auth checks after logout. -->
         <script>
             window.addEventListener('unload', function(){});
             window.addEventListener('pageshow', function(e){ if(e.persisted) window.location.replace(window.location.href); });
+            window.addEventListener('popstate', function(){ window.location.reload(); });
         </script>
 
         <!-- Scripts -->

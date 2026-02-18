@@ -33,7 +33,7 @@ class SecurityHeadersMiddleware
                 "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
                 "img-src 'self' data: blob:",
                 "font-src 'self' data: https://fonts.bunny.net",
-                "connect-src 'self' ws://127.0.0.1:8080 wss://127.0.0.1:8080 " . rtrim(config('app.url'), '/'),
+                "connect-src 'self' ws://127.0.0.1:8080 wss://127.0.0.1:8080 " . rtrim(config('app.url'), '/') . " " . str_replace(['https://', 'http://'], ['wss://', 'ws://'], rtrim(config('app.url'), '/')),
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",

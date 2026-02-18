@@ -539,6 +539,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.stripe_key" class="adm-input" placeholder="pk_live_..." />
+                            <div v-if="appSettings.stripe_key?.preview" class="adm-api-preview">{{ appSettings.stripe_key.preview }}</div>
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">
@@ -548,6 +549,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.stripe_secret" type="password" class="adm-input" placeholder="sk_live_..." />
+                            <div v-if="appSettings.stripe_secret?.preview" class="adm-api-preview">{{ appSettings.stripe_secret.preview }}</div>
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">
@@ -557,6 +559,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.stripe_webhook_secret" type="password" class="adm-input" placeholder="whsec_..." />
+                            <div v-if="appSettings.stripe_webhook_secret?.preview" class="adm-api-preview">{{ appSettings.stripe_webhook_secret.preview }}</div>
                         </div>
                     </div>
                 </div>
@@ -579,6 +582,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.google_client_id" class="adm-input" placeholder="123456789-abc.apps.googleusercontent.com" />
+                            <div v-if="appSettings.google_client_id?.preview" class="adm-api-preview">{{ appSettings.google_client_id.preview }}</div>
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">
@@ -588,6 +592,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.google_client_secret" type="password" class="adm-input" placeholder="GOCSPX-..." />
+                            <div v-if="appSettings.google_client_secret?.preview" class="adm-api-preview">{{ appSettings.google_client_secret.preview }}</div>
                         </div>
                     </div>
                 </div>
@@ -610,6 +615,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.openai_api_key" type="password" class="adm-input" placeholder="sk-..." />
+                            <div v-if="appSettings.openai_api_key?.preview" class="adm-api-preview">{{ appSettings.openai_api_key.preview }}</div>
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">
@@ -619,6 +625,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.anthropic_api_key" type="password" class="adm-input" placeholder="sk-ant-..." />
+                            <div v-if="appSettings.anthropic_api_key?.preview" class="adm-api-preview">{{ appSettings.anthropic_api_key.preview }}</div>
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">
@@ -628,6 +635,7 @@ const nav = [
                                 </span>
                             </label>
                             <input v-model="settingsForm.mistral_api_key" type="password" class="adm-input" placeholder="..." />
+                            <div v-if="appSettings.mistral_api_key?.preview" class="adm-api-preview">{{ appSettings.mistral_api_key.preview }}</div>
                         </div>
                     </div>
                 </div>
@@ -767,5 +775,6 @@ const nav = [
 .adm-api-indicator { margin-left: auto; font-size: 0.7rem; font-weight: 500; }
 .adm-api-indicator-ok  { color: #16a34a; }
 .adm-api-indicator-off { color: #9ca3af; }
+.adm-api-preview { margin-top: 0.375rem; font-size: 0.75rem; font-family: monospace; color: #6b7280; background: #f3f4f6; border-radius: 0.375rem; padding: 0.25rem 0.5rem; word-break: break-all; }
 
 </style>

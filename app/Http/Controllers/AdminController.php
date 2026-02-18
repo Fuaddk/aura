@@ -57,15 +57,20 @@ class AdminController extends Controller
         })->values();
 
         // Check actual .env/config values so indicators reflect real connectivity
+        $fn = fn($val, $secret) => [
+            'is_set'   => !empty($val),
+            'is_secret'=> $secret,
+            'preview'  => $val ? ($secret ? substr($val, 0, 8) . '...' : $val) : null,
+        ];
         $appSettings = collect([
-            'stripe_key'            => ['is_set' => !empty(config('cashier.key')),                      'is_secret' => false],
-            'stripe_secret'         => ['is_set' => !empty(config('cashier.secret')),                   'is_secret' => true],
-            'stripe_webhook_secret' => ['is_set' => !empty(config('cashier.webhook.secret')),           'is_secret' => true],
-            'google_client_id'      => ['is_set' => !empty(config('services.google.client_id')),        'is_secret' => false],
-            'google_client_secret'  => ['is_set' => !empty(config('services.google.client_secret')),   'is_secret' => true],
-            'openai_api_key'        => ['is_set' => !empty(config('services.openai.key')),              'is_secret' => true],
-            'anthropic_api_key'     => ['is_set' => !empty(config('services.anthropic.key')),           'is_secret' => true],
-            'mistral_api_key'       => ['is_set' => !empty(config('services.mistral.key')),             'is_secret' => true],
+            'stripe_key'            => $fn(config('cashier.key'),                    false),
+            'stripe_secret'         => $fn(config('cashier.secret'),                 true),
+            'stripe_webhook_secret' => $fn(config('cashier.webhook.secret'),         true),
+            'google_client_id'      => $fn(config('services.google.client_id'),      false),
+            'google_client_secret'  => $fn(config('services.google.client_secret'),  true),
+            'openai_api_key'        => $fn(config('services.openai.key'),            true),
+            'anthropic_api_key'     => $fn(config('services.anthropic.key'),         true),
+            'mistral_api_key'       => $fn(config('services.mistral.key'),           true),
         ]);
 
         return [

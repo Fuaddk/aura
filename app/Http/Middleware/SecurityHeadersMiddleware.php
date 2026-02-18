@@ -41,8 +41,8 @@ class SecurityHeadersMiddleware
             $response->headers->set('Content-Security-Policy', $csp);
         }
 
-        // HSTS — only in production over HTTPS
-        if ($request->isSecure() || config('app.env') === 'production') {
+        // HSTS — only when actually on HTTPS
+        if ($request->isSecure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 

@@ -519,7 +519,7 @@ const nav = [
             <!-- API-INDSTILLINGER -->
             <section v-if="activeTab === 'appsettings'">
                 <h2 class="adm-section-title">API-indstillinger</h2>
-                <p style="font-size:0.875rem;color:#6b7280;margin-bottom:1.5rem">Efterlad felter tomme for at beholde de nuværende værdier. Nøgler skrives direkte til <code style="background:#f3f4f6;padding:0.1rem 0.3rem;border-radius:0.25rem">.env</code>-filen på serveren.</p>
+                <p style="font-size:0.875rem;color:#6b7280;margin-bottom:1.5rem">Efterlad felter tomme for at beholde de nuværende værdier.</p>
 
                 <!-- Stripe -->
                 <div class="adm-settings-section">

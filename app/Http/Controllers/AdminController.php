@@ -56,13 +56,17 @@ class AdminController extends Controller
             return $src;
         })->values();
 
-        $appSettings = AppSetting::all()->map(function ($s) {
-            return [
-                'key'       => $s->key,
-                'is_secret' => $s->is_secret,
-                'is_set'    => !empty($s->value),
-            ];
-        })->keyBy('key');
+        // Check actual .env/config values so indicators reflect real connectivity
+        $appSettings = collect([
+            'stripe_key'            => ['is_set' => !empty(config('cashier.key')),                      'is_secret' => false],
+            'stripe_secret'         => ['is_set' => !empty(config('cashier.secret')),                   'is_secret' => true],
+            'stripe_webhook_secret' => ['is_set' => !empty(config('cashier.webhook.secret')),           'is_secret' => true],
+            'google_client_id'      => ['is_set' => !empty(config('services.google.client_id')),        'is_secret' => false],
+            'google_client_secret'  => ['is_set' => !empty(config('services.google.client_secret')),   'is_secret' => true],
+            'openai_api_key'        => ['is_set' => !empty(config('services.openai.key')),              'is_secret' => true],
+            'anthropic_api_key'     => ['is_set' => !empty(config('services.anthropic.key')),           'is_secret' => true],
+            'mistral_api_key'       => ['is_set' => !empty(config('services.mistral.key')),             'is_secret' => true],
+        ]);
 
         return [
             'stats'              => $stats,

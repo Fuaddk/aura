@@ -56,12 +56,21 @@ class AdminController extends Controller
             return $src;
         })->values();
 
+        $appSettings = AppSetting::all()->map(function ($s) {
+            return [
+                'key'       => $s->key,
+                'is_secret' => $s->is_secret,
+                'is_set'    => !empty($s->value),
+            ];
+        })->keyBy('key');
+
         return [
             'stats'              => $stats,
             'plans'              => $plans,
             'users'              => $users,
             'knowledgeSources'   => $knowledgeSources,
             'predefinedSources'  => $predefinedSources,
+            'appSettings'        => $appSettings,
         ];
     }
 
@@ -240,17 +249,7 @@ class AdminController extends Controller
 
     public function settings(): Response
     {
-        $settings = AppSetting::all()->map(function ($s) {
-            return [
-                'key'       => $s->key,
-                'is_secret' => $s->is_secret,
-                'is_set'    => !empty($s->value),
-            ];
-        })->keyBy('key');
-
-        return Inertia::render('Admin/Dashboard', array_merge($this->baseProps(), [
-            'appSettings' => $settings,
-        ]));
+        return Inertia::render('Admin/Dashboard', $this->baseProps());
     }
 
     public function updateSettings(Request $request): RedirectResponse

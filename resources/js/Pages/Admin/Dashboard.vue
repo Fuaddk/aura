@@ -523,18 +523,39 @@ const nav = [
 
                 <!-- Stripe -->
                 <div class="adm-settings-section">
-                    <h3 class="adm-form-heading">Stripe</h3>
+                    <h3 class="adm-form-heading">
+                        Stripe
+                        <span class="adm-api-group-status">
+                            <span :class="['adm-api-dot', (appSettings.stripe_key?.is_set && appSettings.stripe_secret?.is_set && appSettings.stripe_webhook_secret?.is_set) ? 'adm-api-dot-ok' : 'adm-api-dot-off']"></span>
+                            {{ (appSettings.stripe_key?.is_set && appSettings.stripe_secret?.is_set && appSettings.stripe_webhook_secret?.is_set) ? 'Forbundet' : 'Ikke konfigureret' }}
+                        </span>
+                    </h3>
                     <div class="adm-settings-grid">
                         <div class="adm-field">
-                            <label class="adm-label">Stripe Public Key <span v-if="appSettings.stripe_key?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Stripe Public Key
+                                <span :class="['adm-api-indicator', appSettings.stripe_key?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.stripe_key?.is_set ? '● Sat' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.stripe_key" class="adm-input" placeholder="pk_live_..." />
                         </div>
                         <div class="adm-field">
-                            <label class="adm-label">Stripe Secret Key <span v-if="appSettings.stripe_secret?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Stripe Secret Key
+                                <span :class="['adm-api-indicator', appSettings.stripe_secret?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.stripe_secret?.is_set ? '● Sat' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.stripe_secret" type="password" class="adm-input" placeholder="sk_live_..." />
                         </div>
                         <div class="adm-field">
-                            <label class="adm-label">Stripe Webhook Secret <span v-if="appSettings.stripe_webhook_secret?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Stripe Webhook Secret
+                                <span :class="['adm-api-indicator', appSettings.stripe_webhook_secret?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.stripe_webhook_secret?.is_set ? '● Sat' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.stripe_webhook_secret" type="password" class="adm-input" placeholder="whsec_..." />
                         </div>
                     </div>
@@ -542,14 +563,30 @@ const nav = [
 
                 <!-- Google -->
                 <div class="adm-settings-section">
-                    <h3 class="adm-form-heading">Google OAuth</h3>
+                    <h3 class="adm-form-heading">
+                        Google OAuth
+                        <span class="adm-api-group-status">
+                            <span :class="['adm-api-dot', (appSettings.google_client_id?.is_set && appSettings.google_client_secret?.is_set) ? 'adm-api-dot-ok' : 'adm-api-dot-off']"></span>
+                            {{ (appSettings.google_client_id?.is_set && appSettings.google_client_secret?.is_set) ? 'Forbundet' : 'Ikke konfigureret' }}
+                        </span>
+                    </h3>
                     <div class="adm-settings-grid">
                         <div class="adm-field">
-                            <label class="adm-label">Client ID <span v-if="appSettings.google_client_id?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Client ID
+                                <span :class="['adm-api-indicator', appSettings.google_client_id?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.google_client_id?.is_set ? '● Sat' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.google_client_id" class="adm-input" placeholder="123456789-abc.apps.googleusercontent.com" />
                         </div>
                         <div class="adm-field">
-                            <label class="adm-label">Client Secret <span v-if="appSettings.google_client_secret?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Client Secret
+                                <span :class="['adm-api-indicator', appSettings.google_client_secret?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.google_client_secret?.is_set ? '● Sat' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.google_client_secret" type="password" class="adm-input" placeholder="GOCSPX-..." />
                         </div>
                     </div>
@@ -557,18 +594,39 @@ const nav = [
 
                 <!-- AI -->
                 <div class="adm-settings-section">
-                    <h3 class="adm-form-heading">AI-modeller</h3>
+                    <h3 class="adm-form-heading">
+                        AI-modeller
+                        <span class="adm-api-group-status">
+                            <span :class="['adm-api-dot', (appSettings.openai_api_key?.is_set || appSettings.anthropic_api_key?.is_set || appSettings.mistral_api_key?.is_set) ? 'adm-api-dot-ok' : 'adm-api-dot-off']"></span>
+                            {{ (appSettings.openai_api_key?.is_set || appSettings.anthropic_api_key?.is_set || appSettings.mistral_api_key?.is_set) ? 'Min. 1 aktiv' : 'Ingen konfigureret' }}
+                        </span>
+                    </h3>
                     <div class="adm-settings-grid">
                         <div class="adm-field">
-                            <label class="adm-label">OpenAI API Key <span v-if="appSettings.openai_api_key?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                OpenAI API Key
+                                <span :class="['adm-api-indicator', appSettings.openai_api_key?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.openai_api_key?.is_set ? '● Aktiv' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.openai_api_key" type="password" class="adm-input" placeholder="sk-..." />
                         </div>
                         <div class="adm-field">
-                            <label class="adm-label">Anthropic API Key <span v-if="appSettings.anthropic_api_key?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Anthropic API Key
+                                <span :class="['adm-api-indicator', appSettings.anthropic_api_key?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.anthropic_api_key?.is_set ? '● Aktiv' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.anthropic_api_key" type="password" class="adm-input" placeholder="sk-ant-..." />
                         </div>
                         <div class="adm-field">
-                            <label class="adm-label">Mistral API Key <span v-if="appSettings.mistral_api_key?.is_set" class="adm-set-badge">Sat</span></label>
+                            <label class="adm-label">
+                                Mistral API Key
+                                <span :class="['adm-api-indicator', appSettings.mistral_api_key?.is_set ? 'adm-api-indicator-ok' : 'adm-api-indicator-off']">
+                                    {{ appSettings.mistral_api_key?.is_set ? '● Aktiv' : '○ Ikke sat' }}
+                                </span>
+                            </label>
                             <input v-model="settingsForm.mistral_api_key" type="password" class="adm-input" placeholder="..." />
                         </div>
                     </div>
@@ -700,4 +758,14 @@ const nav = [
 .adm-settings-section { margin-bottom: 2rem; }
 .adm-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 1.25rem; }
 .adm-set-badge { font-size: 0.625rem; font-weight: 700; background: #dcfce7; color: #166534; padding: 0.125rem 0.4rem; border-radius: 9999px; }
+
+/* API group status (in settings headings) */
+.adm-api-group-status { display: inline-flex; align-items: center; gap: 0.375rem; margin-left: 0.75rem; font-size: 0.75rem; font-weight: 400; color: #6b7280; vertical-align: middle; }
+.adm-api-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; flex-shrink: 0; }
+.adm-api-dot-ok  { background: #22c55e; box-shadow: 0 0 0 2px #dcfce7; }
+.adm-api-dot-off { background: #d1d5db; }
+.adm-api-indicator { margin-left: auto; font-size: 0.7rem; font-weight: 500; }
+.adm-api-indicator-ok  { color: #16a34a; }
+.adm-api-indicator-off { color: #9ca3af; }
+
 </style>

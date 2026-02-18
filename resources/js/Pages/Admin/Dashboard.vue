@@ -20,6 +20,15 @@ const flash = computed(() => page.props.flash || {});
 const activeTab = ref(props.viewUser ? 'chat' : 'overview');
 watch(() => props.viewUser, (v) => { if (v) activeTab.value = 'chat'; });
 
+// Navigate to /admin when switching tabs so URL always reflects state
+const handleTabClick = (tabId) => {
+    activeTab.value = tabId;
+    // If we're on a sub-URL (e.g. /admin/users/1/conversations), go back to /admin
+    if (!page.url.match(/^\/admin\/?$/)) {
+        router.visit(route('admin.dashboard'), { preserveScroll: false });
+    }
+};
+
 /* ── Users ──────────────────────────────────────────────── */
 const deletingUser  = ref(null);
 const updatingPlan  = ref(null);
@@ -199,7 +208,7 @@ const nav = [
             <nav class="adm-nav">
                 <button v-for="item in nav" :key="item.id"
                     :class="['adm-nav-item', { 'adm-nav-item-active': activeTab === item.id }]"
-                    @click="activeTab = item.id">
+                    @click="handleTabClick(item.id)">
                     <svg xmlns="http://www.w3.org/2000/svg" class="adm-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
                     </svg>

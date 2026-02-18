@@ -58,8 +58,9 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        // Prevent browser back-button from showing cached authenticated pages
+        // Clear ALL browser caches so back-button cannot restore protected pages
         return redirect('/')
+            ->header('Clear-Site-Data', '"cache", "storage"')
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');

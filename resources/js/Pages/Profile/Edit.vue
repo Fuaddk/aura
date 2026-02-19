@@ -507,7 +507,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                             </div>
 
                             <div v-if="usagePercent >= 80" class="st-notice" style="margin:0.75rem 0 0">
-                                Du nærmer dig din grænse.
+                                {{ usagePercent >= 100 ? 'Du har nået din grænse.' : 'Du nærmer dig din grænse.' }}
                                 <button @click="activeSection = 'subscription'" class="st-link">Opgrader plan →</button>
                             </div>
 

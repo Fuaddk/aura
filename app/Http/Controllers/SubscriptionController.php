@@ -94,14 +94,29 @@ class SubscriptionController extends Controller
                 $session = \Laravel\Cashier\Cashier::stripe()->checkout->sessions->retrieve($sessionId);
                 $plan    = $session->metadata->plan ?? null;
 
-                if ($plan) {
+                // Only activate plan if payment actually succeeded
+                if ($plan && $session->payment_status === 'paid') {
                     $user->update([
                         'subscription_plan' => $plan,
                         'ai_messages_limit' => $this->limitForPlan($plan),
                     ]);
 
                     \App\Services\NotificationService::notifySubscriptionUpgraded($user, $plan);
+
+                    return redirect()->route('profile.edit', ['section' => 'subscription'])
+                        ->with('status', 'subscription-updated');
                 }
+
+                // Payment not confirmed — redirect with error
+                Log::warning('Stripe checkout reached success URL but payment_status is not paid', [
+                    'user_id'        => $user->id,
+                    'payment_status' => $session->payment_status ?? 'unknown',
+                    'session_id'     => $sessionId,
+                ]);
+
+                return redirect()->route('profile.edit', ['section' => 'subscription'])
+                    ->with('status', 'subscription-payment-failed');
+
             } catch (\Exception $e) {
                 Log::error('Stripe checkout success error', ['error' => $e->getMessage()]);
             }

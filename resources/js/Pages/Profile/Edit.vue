@@ -213,10 +213,11 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                     <div class="st-content">
 
                         <!-- Banners -->
-                        <div v-if="status === 'profile-updated'"        class="st-banner st-banner-green">Profil opdateret.</div>
-                        <div v-if="status === 'password-updated'"       class="st-banner st-banner-green">Adgangskode opdateret.</div>
-                        <div v-if="status === 'subscription-updated'"   class="st-banner st-banner-purple">Abonnement opdateret til {{ planLabel(currentPlan) }}.</div>
-                        <div v-if="status === 'subscription-cancelled'" class="st-banner st-banner-green">Dit abonnement er annulleret. Du er nu på Gratis-planen.</div>
+                        <div v-if="status === 'profile-updated'"           class="st-banner st-banner-green">Profil opdateret.</div>
+                        <div v-if="status === 'password-updated'"          class="st-banner st-banner-green">Adgangskode opdateret.</div>
+                        <div v-if="status === 'subscription-updated'"      class="st-banner st-banner-purple">Abonnement opdateret til {{ planLabel(currentPlan) }}.</div>
+                        <div v-if="status === 'subscription-cancelled'"    class="st-banner st-banner-green">Dit abonnement er annulleret. Du er nu på Gratis-planen.</div>
+                        <div v-if="status === 'subscription-payment-failed'" class="st-banner st-banner-red">Betalingen kunne ikke gennemføres. Din plan er ikke ændret. Tjek at dit kort har dækning og prøv igen.</div>
 
                         <!-- ══════════════ GENERELT ══════════════ -->
                         <template v-if="activeSection === 'general'">
@@ -823,6 +824,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 .st-banner { border-radius: 0.625rem; padding: 0.75rem 1rem; font-size: 0.875rem; margin-bottom: 1.25rem; }
 .st-banner-green  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .st-banner-purple { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
+.st-banner-red    { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
 /* ── Notices ─────────────────────────────────────────────── */
 .st-notice { font-size: 0.8125rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.375rem; padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }

@@ -98,26 +98,29 @@ const onCustomInput = () => {
     const v = parseInt(topupCustom.value);
     if (!isNaN(v) && v >= 10) topupAmount.value = v;
 };
-const submitTopup = () => {
+const submitTopup = async () => {
     if (topupAmount.value < 10 || topupLoading.value) return;
     topupLoading.value = true;
 
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = route('subscription.wallet.topup');
-    form.style.display = 'none';
+    try {
+        const res = await fetch(route('subscription.wallet.topup'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ amount: topupAmount.value }),
+        });
 
-    const addField = (name, value) => {
-        const el = document.createElement('input');
-        el.type = 'hidden'; el.name = name; el.value = value;
-        form.appendChild(el);
-    };
+        if (!res.ok) { topupLoading.value = false; return; }
 
-    addField('_token', document.querySelector('meta[name="csrf-token"]')?.content ?? '');
-    addField('amount', topupAmount.value);
-
-    document.body.appendChild(form);
-    form.submit();
+        const { url } = await res.json();
+        window.location.href = url;
+    } catch {
+        topupLoading.value = false;
+    }
 };
 
 /* ── Password visibility ────────────────────────────────── */

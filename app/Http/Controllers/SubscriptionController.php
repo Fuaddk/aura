@@ -195,6 +195,11 @@ class SubscriptionController extends Controller
             'locale' => 'da',
         ]);
 
+        // Return JSON URL for fetch()-based navigation (avoids form-action CSP)
+        if ($request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json(['url' => $session->url]);
+        }
+
         return redirect($session->url);
     }
 

@@ -108,6 +108,7 @@ const sendMessage = async () => {
     const hasFile = !!uploadFile.value;
     if (!hasFile && !message.value.trim()) return;
     if (isLoading.value) return;
+    if (usagePercent.value >= 100) return;
     isLoading.value = true;
 
     const userMessage = message.value;
@@ -523,15 +524,15 @@ onMounted(() => {
                                 v-model="message"
                                 @input="autoResizeTextarea"
                                 @keydown.enter.exact.prevent="sendMessage"
-                                :placeholder="uploadPreview ? 'Tilføj en besked til dokumentet (valgfrit)...' : 'Skriv en besked...'"
+                                :placeholder="usagePercent >= 100 ? 'Du har brugt alle dine beskeder denne måned...' : uploadPreview ? 'Tilføj en besked til dokumentet (valgfrit)...' : 'Skriv en besked...'"
                                 rows="1"
                                 class="chat-textarea"
-                                :disabled="isLoading"
+                                :disabled="isLoading || usagePercent >= 100"
                             ></textarea>
                             <!-- Paperclip button -->
                             <button
                                 @click="fileInputRef.click()"
-                                :disabled="isLoading"
+                                :disabled="isLoading || usagePercent >= 100"
                                 class="chat-attach-btn"
                                 title="Vedhæft dokument (PDF, billede, TXT)"
                             >
@@ -541,7 +542,7 @@ onMounted(() => {
                             </button>
                             <button
                                 @click="sendMessage"
-                                :disabled="(!message.trim() && !uploadFile) || isLoading"
+                                :disabled="(!message.trim() && !uploadFile) || isLoading || usagePercent >= 100"
                                 class="chat-send-btn"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

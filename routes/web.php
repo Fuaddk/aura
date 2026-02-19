@@ -102,6 +102,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // API-indstillinger
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+    Route::patch('/settings/extra-usage-rate', [AdminController::class, 'updateExtraUsageRate'])->name('settings.extra-usage-rate');
 
     // Subscription plan management
     Route::post('/subscription-plans', [AdminController::class, 'storePlan'])->name('subscription-plans.store');

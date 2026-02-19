@@ -2226,7 +2226,7 @@ SECTION;
 
     /**
      * Increment ai_tokens_used and deduct wallet balance for overage tokens.
-     * Rate: 0.0004 kr per token (100 kr = 250.000 tokens).
+     * Rate: hentes fra app_settings (extra_usage_rate_per_token), fallback 0.0004 kr/token.
      */
     private function trackTokensAndDeductWallet(\App\Models\User $user, int $tokensUsed): void
     {
@@ -2239,7 +2239,8 @@ SECTION;
             $included      = max(0, $limit - $previousUsed);
             $overageTokens = max(0, $tokensUsed - $included);
             if ($overageTokens > 0) {
-                $cost = round($overageTokens * 0.0004, 2);
+                $rate = (float) \App\Models\AppSetting::get('extra_usage_rate_per_token', 0.0004);
+                $cost = round($overageTokens * $rate, 2);
                 if ($cost > 0) {
                     $user->decrement('wallet_balance', $cost);
                 }

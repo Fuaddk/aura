@@ -6,19 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class AppSetting extends Model
 {
-    protected $fillable = ['key', 'value', 'is_secret'];
+    protected $primaryKey  = 'key';
+    protected $keyType     = 'string';
+    public    $incrementing = false;
 
-    protected $casts = [
-        'is_secret' => 'boolean',
-    ];
+    protected $fillable = ['key', 'value', 'label'];
 
-    public static function getValue(string $key): ?string
+    public static function get(string $key, mixed $default = null): mixed
     {
-        return static::where('key', $key)->value('value');
+        return static::where('key', $key)->value('value') ?? $default;
     }
 
-    public static function set(string $key, string $value): void
+    public static function set(string $key, mixed $value): void
     {
-        static::updateOrCreate(['key' => $key], ['value' => $value]);
+        static::where('key', $key)->update(['value' => $value, 'updated_at' => now()]);
     }
 }

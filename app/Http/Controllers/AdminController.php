@@ -84,6 +84,7 @@ class AdminController extends Controller
             'predefinedSources'  => $predefinedSources,
             'appSettings'        => $appSettings,
             'subscriptionPlans'  => $subscriptionPlans,
+            'extraUsageRate'     => (float) AppSetting::get('extra_usage_rate_per_token', 0.0004),
         ];
     }
 
@@ -347,6 +348,17 @@ class AdminController extends Controller
         }
 
         return back()->with('success', $updated > 0 ? "{$updated} nøgle(r) opdateret i .env." : 'Ingen ændringer — alle felter var tomme.');
+    }
+
+    public function updateExtraUsageRate(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'rate' => 'required|numeric|min:0.000001|max:1',
+        ]);
+
+        AppSetting::set('extra_usage_rate_per_token', $request->rate);
+
+        return back()->with('success', 'Takst opdateret.');
     }
 
     /* ── Subscription plan management ──────────────────────── */

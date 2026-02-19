@@ -557,13 +557,13 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 
                         <!-- ══════════════ FORBRUG ══════════════ -->
                         <template v-if="activeSection === 'usage'">
-                            <h3 class="st-heading">Planbegrænsninger</h3>
+                            <h3 class="st-heading">Forbrug</h3>
 
                             <!-- Main usage bar -->
                             <div class="st-usage-item">
                                 <div class="st-usage-top">
                                     <div>
-                                        <div class="st-usage-name">AI-tokens</div>
+                                        <div class="st-usage-name">Dit nuværende forbrug</div>
                                         <div class="st-muted" style="margin-top:0.125rem;font-size:0.8125rem">Nulstilles {{ nextResetDate }}</div>
                                     </div>
                                     <span class="st-usage-pct" :style="{ color: usageColor }">{{ usagePercent }}% brugt</span>

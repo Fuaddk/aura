@@ -160,7 +160,7 @@ class SubscriptionController extends Controller
     /**
      * Opret Stripe Checkout session for wallet top-up (engangsbetaling).
      */
-    public function walletTopup(Request $request): RedirectResponse
+    public function walletTopup(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'amount' => ['required', 'integer', 'min:10', 'max:5000'],

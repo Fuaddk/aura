@@ -53,6 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Notifications
         Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+        Route::delete('/notifications', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
     });
 });
 

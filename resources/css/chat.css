@@ -3001,6 +3001,7 @@
     align-items: center;
 }
 
+/* Bell button */
 .chat-notif-btn {
     position: relative;
     display: flex;
@@ -3015,24 +3016,18 @@
     color: #6b7280;
     transition: background 0.15s, color 0.15s;
 }
+.chat-notif-btn:hover { background: #f3f4f6; color: #111827; }
+.chat-notif-btn.notif-btn-active { background: #ede9fe; color: #6366f1; }
+.chat-notif-btn svg { width: 1.25rem; height: 1.25rem; }
 
-.chat-notif-btn:hover {
-    background: #f3f4f6;
-    color: #111827;
-}
-
-.chat-notif-btn svg {
-    width: 1.25rem;
-    height: 1.25rem;
-}
-
+/* Badge */
 .chat-notif-badge {
     position: absolute;
-    top: 0.2rem;
-    right: 0.2rem;
-    min-width: 1rem;
-    height: 1rem;
-    padding: 0 0.25rem;
+    top: 0.15rem;
+    right: 0.15rem;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    padding: 0 0.2rem;
     background: #ef4444;
     color: #fff;
     font-size: 0.6rem;
@@ -3042,145 +3037,309 @@
     align-items: center;
     justify-content: center;
     line-height: 1;
+    box-shadow: 0 0 0 2px #fff;
 }
 
+/* Bell shake animation */
+@keyframes notif-bell-shake {
+    0%,100% { transform: rotate(0deg); }
+    15%      { transform: rotate(18deg); }
+    30%      { transform: rotate(-16deg); }
+    45%      { transform: rotate(12deg); }
+    60%      { transform: rotate(-10deg); }
+    75%      { transform: rotate(6deg); }
+}
+.notif-bell-shake svg {
+    animation: notif-bell-shake 0.7s ease;
+    transform-origin: 50% 0%;
+}
+
+/* ── Dropdown panel ── */
 .chat-notif-panel {
     position: absolute;
     top: calc(100% + 0.5rem);
     right: 0;
-    width: 22rem;
-    max-width: calc(100vw - 2rem);
+    width: 23rem;
+    max-width: calc(100vw - 1rem);
     background: #fff;
     border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    z-index: 100;
+    border-radius: 1rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.13), 0 2px 8px rgba(0,0,0,0.06);
+    z-index: 200;
     overflow: hidden;
 }
 
+/* Header */
 .chat-notif-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1rem 0.75rem;
     border-bottom: 1px solid #f3f4f6;
+    background: #fafafa;
 }
-
+.chat-notif-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 .chat-notif-header-title {
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 700;
     color: #111827;
+    letter-spacing: -0.01em;
 }
-
-.chat-notif-readall {
-    font-size: 0.75rem;
-    color: #6366f1;
-    background: none;
+.chat-notif-count {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-radius: 9999px;
+    padding: 0.1rem 0.45rem;
+}
+.chat-notif-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.chat-notif-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
     border: none;
+    border-radius: 0.5rem;
+    background: none;
     cursor: pointer;
-    padding: 0;
+    color: #6b7280;
+    transition: background 0.13s, color 0.13s;
 }
+.chat-notif-action-btn:hover { background: #f3f4f6; color: #111827; }
+.chat-notif-action-btn svg { width: 1rem; height: 1rem; }
+.chat-notif-action-btn--danger:hover { background: #fef2f2; color: #ef4444; }
 
-.chat-notif-readall:hover {
-    text-decoration: underline;
-}
-
+/* List */
 .chat-notif-list {
     max-height: 22rem;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #e5e7eb transparent;
 }
+.chat-notif-list::-webkit-scrollbar { width: 4px; }
+.chat-notif-list::-webkit-scrollbar-track { background: transparent; }
+.chat-notif-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
 
+/* Item */
 .chat-notif-item {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.8rem 1rem;
     cursor: pointer;
-    border-bottom: 1px solid #f9fafb;
+    border-bottom: 1px solid #f3f4f6;
     transition: background 0.12s;
+    position: relative;
 }
-
-.chat-notif-item:last-child {
-    border-bottom: none;
-}
-
-.chat-notif-item:hover {
-    background: #f9fafb;
-}
-
+.chat-notif-item:last-child { border-bottom: none; }
+.chat-notif-item:hover { background: #f9fafb; }
 .chat-notif-item.unread {
-    background: #f0f4ff;
+    background: #f5f3ff;
     border-left: 3px solid #6366f1;
 }
+.chat-notif-item.unread:hover { background: #ede9fe; }
 
-.chat-notif-item.unread:hover {
-    background: #e8eeff;
-}
-
-.chat-notif-icon {
-    font-size: 1.1rem;
-    margin-top: 0.1rem;
+/* Icon wrap */
+.chat-notif-icon-wrap {
+    width: 2.1rem;
+    height: 2.1rem;
+    background: #f3f4f6;
+    border-radius: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    margin-top: 0.05rem;
 }
+.chat-notif-item.unread .chat-notif-icon-wrap { background: #ede9fe; }
+.chat-notif-icon { font-size: 1rem; line-height: 1; }
 
-.chat-notif-body {
-    flex: 1;
-    min-width: 0;
-}
-
+.chat-notif-body { flex: 1; min-width: 0; }
 .chat-notif-title {
     font-size: 0.8rem;
     font-weight: 600;
     color: #111827;
-    margin: 0 0 0.15rem;
+    margin: 0 0 0.2rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .chat-notif-msg {
     font-size: 0.75rem;
     color: #6b7280;
     margin: 0 0 0.25rem;
-    line-height: 1.35;
+    line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-
-.chat-notif-time {
-    font-size: 0.7rem;
-    color: #9ca3af;
-    margin: 0;
-}
+.chat-notif-time { font-size: 0.68rem; color: #9ca3af; margin: 0; }
 
 .chat-notif-dot {
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 0.45rem;
+    height: 0.45rem;
     border-radius: 50%;
     background: #6366f1;
     flex-shrink: 0;
-    margin-top: 0.35rem;
+    margin-top: 0.4rem;
 }
 
+/* Empty state */
 .chat-notif-empty {
-    padding: 1.5rem 1rem;
+    padding: 2.5rem 1rem;
     text-align: center;
+    color: #d1d5db;
+}
+.chat-notif-empty svg {
+    width: 2.5rem;
+    height: 2.5rem;
+    margin: 0 auto 0.6rem;
+    display: block;
+}
+.chat-notif-empty p {
     font-size: 0.8rem;
     color: #9ca3af;
     margin: 0;
 }
 
-/* Transition */
+/* ── Detail modal ── */
+.chat-notif-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.chat-notif-modal {
+    background: #fff;
+    border-radius: 1.25rem;
+    padding: 2rem 2rem 1.75rem;
+    width: 100%;
+    max-width: 26rem;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    text-align: center;
+}
+.chat-notif-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 9999px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: background 0.13s, color 0.13s;
+}
+.chat-notif-modal-close:hover { background: #e5e7eb; color: #111827; }
+.chat-notif-modal-close svg { width: 0.9rem; height: 0.9rem; }
+
+.chat-notif-modal-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    line-height: 1;
+}
+.chat-notif-modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.35rem;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+}
+.chat-notif-modal-time {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    margin: 0 0 1rem;
+}
+.chat-notif-modal-msg {
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.6;
+    margin: 0 0 1.5rem;
+    white-space: pre-wrap;
+    text-align: left;
+    background: #f9fafb;
+    border-radius: 0.75rem;
+    padding: 0.875rem 1rem;
+}
+.chat-notif-modal-actions {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: center;
+}
+.chat-notif-modal-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.25rem;
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.13s;
+}
+.chat-notif-modal-go:hover { background: #4f46e5; }
+.chat-notif-modal-go svg { width: 0.9rem; height: 0.9rem; }
+.chat-notif-modal-dismiss {
+    padding: 0.55rem 1.25rem;
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+    border-radius: 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.13s;
+}
+.chat-notif-modal-dismiss:hover { background: #e5e7eb; }
+
+/* ── Transitions ── */
 .notif-fade-enter-active,
 .notif-fade-leave-active {
     transition: opacity 0.15s ease, transform 0.15s ease;
 }
-
 .notif-fade-enter-from,
 .notif-fade-leave-to {
     opacity: 0;
-    transform: translateY(-0.25rem);
+    transform: translateY(-0.35rem) scale(0.98);
+}
+
+.notif-item-enter-active { transition: all 0.2s ease; }
+.notif-item-leave-active { transition: all 0.15s ease; }
+.notif-item-enter-from   { opacity: 0; transform: translateX(-0.5rem); }
+.notif-item-leave-to     { opacity: 0; transform: translateX(0.5rem); }
+
+.notif-modal-enter-active { transition: opacity 0.2s ease; }
+.notif-modal-leave-active { transition: opacity 0.15s ease; }
+.notif-modal-enter-from,
+.notif-modal-leave-to     { opacity: 0; }
+.notif-modal-enter-active .chat-notif-modal { animation: modal-pop 0.2s ease; }
+@keyframes modal-pop {
+    from { transform: scale(0.94) translateY(0.5rem); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
 }

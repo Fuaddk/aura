@@ -24,4 +24,11 @@ class NotificationController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function clearAll(): JsonResponse
+    {
+        AuraNotification::where('user_id', auth()->id())->delete();
+
+        return response()->json(['ok' => true]);
+    }
 }

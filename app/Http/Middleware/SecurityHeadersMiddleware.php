@@ -36,7 +36,7 @@ class SecurityHeadersMiddleware
                 "connect-src 'self' ws://127.0.0.1:8080 wss://127.0.0.1:8080 " . rtrim(config('app.url'), '/') . " " . str_replace(['https://', 'http://'], ['wss://', 'ws://'], rtrim(config('app.url'), '/')),
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
-                "form-action 'self'",
+                "form-action 'self' https://checkout.stripe.com",
             ]);
             $response->headers->set('Content-Security-Policy', $csp);
         }

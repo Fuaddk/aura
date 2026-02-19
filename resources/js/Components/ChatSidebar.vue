@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
+const SIDEBAR_KEY = 'aura_sidebar_open';
+
 const props = defineProps({
     activeCase: Object,
     cases: {
@@ -16,6 +18,16 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'toggle']);
+
+// Persist sidebar state across page navigations
+const stored = localStorage.getItem(SIDEBAR_KEY);
+const isOpen = ref(stored !== null ? stored !== 'false' : props.open);
+
+const handleToggle = () => {
+    isOpen.value = !isOpen.value;
+    localStorage.setItem(SIDEBAR_KEY, String(isOpen.value));
+    emit('toggle');
+};
 
 const page = usePage();
 const userMenuOpen = ref(false);
@@ -166,16 +178,16 @@ const groupedCases = computed(() => {
 </script>
 
 <template>
-    <aside :class="['chat-sidebar', { 'chat-sidebar-closed': !open }]">
+    <aside :class="['chat-sidebar', { 'chat-sidebar-closed': !isOpen }]">
         <!-- Close menus overlay -->
         <div v-if="openChatMenu || openGroupMenu" class="fixed inset-0 z-40" @click="closeMenus"></div>
 
         <!-- Sidebar Header -->
         <div class="sidebar-header flex items-center justify-between p-4">
             <button
-                @click="emit('toggle')"
+                @click="handleToggle"
                 class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                :title="open ? 'Luk sidebar' : 'Åbn sidebar'"
+                :title="isOpen ? 'Luk sidebar' : 'Åbn sidebar'"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />

@@ -129,6 +129,23 @@
 /* Show dots only in collapsed mode */
 .chat-sidebar-closed .sb-dot { display: block; }
 
+/* Lock overlay — shown only in collapsed mode (like sb-dot) */
+.sb-lock-dot {
+    display: none;
+    position: absolute;
+    bottom: -3px;
+    right: -4px;
+    width: 0.75rem;
+    height: 0.75rem;
+    background: #e5e7eb;
+    border-radius: 9999px;
+    border: 1.5px solid #f9f9f9;
+    align-items: center;
+    justify-content: center;
+}
+.sb-lock-dot svg { width: 0.45rem; height: 0.45rem; color: #9ca3af; }
+.chat-sidebar-closed .sb-lock-dot { display: flex; }
+
 /* Sidebar Menu */
 .sidebar-menu {
     padding: 0 0.75rem 0.5rem;

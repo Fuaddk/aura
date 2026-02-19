@@ -179,11 +179,20 @@ const saveExtraRate = () => {
 };
 
 /* ── Subscription plan management ───────────────────────── */
+
+// Add new features here — they automatically appear as checkboxes in the plan editor
+const knownFeatures = [
+    { key: 'calendar', label: 'Kalender' },
+    { key: 'inbox',    label: 'Indbakke' },
+];
+
+const emptyFeatureFlags = () => Object.fromEntries(knownFeatures.map(f => [f.key, false]));
+
 const emptyPlan = () => ({
     slug: '', name: '', description: '', price: 0, tokens_limit: 100000,
     features: '', stripe_price_id: '', color: '#7E75CE',
     is_popular: false, is_active: true, sort_order: 0,
-    feature_flags: { calendar: false, inbox: false },
+    feature_flags: emptyFeatureFlags(),
 });
 
 const showNewPlanForm = ref(false);
@@ -201,7 +210,7 @@ const startEditPlan = (plan) => {
     editPlan.value = {
         ...plan,
         features:      featuresText(plan.features),
-        feature_flags: { calendar: false, inbox: false, ...(plan.feature_flags || {}) },
+        feature_flags: { ...emptyFeatureFlags(), ...(plan.feature_flags || {}) },
     };
 };
 
@@ -418,8 +427,9 @@ const nav = [
                     <div class="adm-sp-field" style="margin-top:.75rem">
                         <label>Adgang til funktioner</label>
                         <div class="adm-sp-checkboxes" style="margin-top:.25rem">
-                            <label><input type="checkbox" v-model="newPlan.feature_flags.calendar" /> Kalender</label>
-                            <label><input type="checkbox" v-model="newPlan.feature_flags.inbox" /> Indbakke</label>
+                            <label v-for="f in knownFeatures" :key="f.key">
+                                <input type="checkbox" v-model="newPlan.feature_flags[f.key]" /> {{ f.label }}
+                            </label>
                         </div>
                     </div>
                     <div class="adm-sp-field" style="margin-top:.75rem">
@@ -507,8 +517,9 @@ const nav = [
                             <div class="adm-sp-field" style="margin-top:.75rem">
                                 <label>Adgang til funktioner</label>
                                 <div class="adm-sp-checkboxes" style="margin-top:.25rem">
-                                    <label><input type="checkbox" v-model="editPlan.feature_flags.calendar" /> Kalender</label>
-                                    <label><input type="checkbox" v-model="editPlan.feature_flags.inbox" /> Indbakke</label>
+                                    <label v-for="f in knownFeatures" :key="f.key">
+                                        <input type="checkbox" v-model="editPlan.feature_flags[f.key]" /> {{ f.label }}
+                                    </label>
                                 </div>
                             </div>
                             <div class="adm-sp-field" style="margin-top:.75rem">

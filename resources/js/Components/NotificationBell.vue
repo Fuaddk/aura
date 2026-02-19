@@ -177,7 +177,8 @@ onUnmounted(() => {
         </div>
         </Transition>
 
-        <!-- ── Detail modal ── -->
+        <!-- ── Detail modal (teleported to body so it covers sidebar too) ── -->
+        <Teleport to="body">
         <Transition name="notif-modal">
         <div v-if="selectedNotif" class="chat-notif-modal-backdrop" @click.self="closeDetail">
             <div class="chat-notif-modal">
@@ -202,6 +203,7 @@ onUnmounted(() => {
             </div>
         </div>
         </Transition>
+        </Teleport>
 
     </div>
 </template>

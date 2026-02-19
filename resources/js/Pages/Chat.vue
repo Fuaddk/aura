@@ -230,6 +230,7 @@ const sendMessage = async () => {
                         scrollToBottom();
                         router.reload({
                             only: [
+                                'auth',
                                 'cases',
                                 'tasks',
                                 'activeCase',
@@ -513,7 +514,7 @@ onMounted(() => {
                             </svg>
                             <template v-if="usagePercent >= 100">
                                 <span v-if="$page.props.auth.user?.extra_usage_enabled && ($page.props.auth.user?.wallet_balance ?? 0) > 0">
-                                    Du bruger nu din saldo · 0,00015 kr/token · Saldo: {{ Number($page.props.auth.user.wallet_balance).toFixed(2).replace('.', ',') }} kr.
+                                    Du bruger nu din saldo<template v-if="['free','basis'].includes($page.props.auth.user?.subscription_plan)"> – men du kan også <a :href="route('subscription.plans')" class="chat-usage-link">opgradere dit abonnement →</a></template>
                                 </span>
                                 <span v-else-if="$page.props.auth.user?.extra_usage_enabled">
                                     Din saldo er tom. <a :href="route('profile.edit', { section: 'usage' })" class="chat-usage-link">Køb mere saldo →</a>

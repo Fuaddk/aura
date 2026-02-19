@@ -37,7 +37,7 @@ class SocialAuthController extends Controller
                 'password'          => null,
                 'email_verified_at' => now(),
                 'subscription_plan' => 'free',
-                'ai_messages_limit' => 50,
+                'ai_tokens_limit' => 100000,
             ]);
         }
 

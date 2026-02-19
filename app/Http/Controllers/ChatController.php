@@ -348,12 +348,12 @@ class ChatController extends Controller
             return response()->json(['message' => 'Filtypen matcher ikke indholdet.'], 422);
         }
 
-        $limit = $user->ai_messages_limit ?? 50;
-        $used  = $user->ai_messages_used  ?? 0;
-        if ($used >= $limit) {
+        $limit = $user->ai_tokens_limit ?? 100000;
+        $used  = $user->ai_tokens_used   ?? 0;
+        if ($limit > 0 && $used >= $limit) {
             return response()->json([
                 'error'   => 'message_limit_reached',
-                'message' => 'Du har brugt alle dine AI-beskeder denne måned. Opgradér din plan for at fortsætte.',
+                'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
             ], 429);
         }
 
@@ -626,8 +626,10 @@ SECTION;
                     : null,
             ]);
 
-            // Increment AI message counter
-            $user->increment('ai_messages_used');
+            // Estimate and track token usage (input + output chars / 4)
+            $inputText  = collect($mistralMessages)->pluck('content')->join(' ');
+            $tokensUsed = max(1, (int) ((mb_strlen($inputText) + mb_strlen($fullContent)) / 4));
+            $user->increment('ai_tokens_used', $tokensUsed);
 
             // Send done event
             echo 'data: ' . json_encode([
@@ -744,12 +746,12 @@ PROMPT;
         $user = auth()->user();
 
         // Enforce AI message limit (return JSON before opening stream)
-        $limit = $user->ai_messages_limit ?? 50;
-        $used  = $user->ai_messages_used  ?? 0;
-        if ($used >= $limit) {
+        $limit = $user->ai_tokens_limit ?? 100000;
+        $used  = $user->ai_tokens_used   ?? 0;
+        if ($limit > 0 && $used >= $limit) {
             return response()->json([
                 'error'   => 'message_limit_reached',
-                'message' => 'Du har brugt alle dine AI-beskeder denne måned. Opgradér din plan for at fortsætte.',
+                'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
             ], 429);
         }
 
@@ -1044,8 +1046,10 @@ PROMPT;
             'metadata'         => !empty($metadata) ? $metadata : null,
         ]);
 
-        // Track usage + generate case title
-        $user->increment('ai_messages_used');
+        // Estimate and track token usage (input history + output / 4)
+        $inputText  = $history->pluck('content')->join(' ') . ' ' . $originalUserMessage;
+        $tokensUsed = max(1, (int) ((mb_strlen($inputText) + mb_strlen($aiMessage)) / 4));
+        $user->increment('ai_tokens_used', $tokensUsed);
 
         if (!$case->title) {
             $this->generateTitle($case, $originalUserMessage);
@@ -1753,12 +1757,12 @@ LAW;
 
         $user = auth()->user();
 
-        $limit = $user->ai_messages_limit ?? 50;
-        $used  = $user->ai_messages_used  ?? 0;
-        if ($used >= $limit) {
+        $limit = $user->ai_tokens_limit ?? 100000;
+        $used  = $user->ai_tokens_used   ?? 0;
+        if ($limit > 0 && $used >= $limit) {
             return response()->json([
                 'error'   => 'message_limit_reached',
-                'message' => 'Du har brugt alle dine AI-beskeder denne måned. Opgradér din plan for at fortsætte.',
+                'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
             ], 429);
         }
 

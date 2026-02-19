@@ -25,10 +25,10 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $messagesUsed  = $user->ai_messages_used  ?? 0;
-        $messagesLimit = $user->ai_messages_limit  ?? 50;
-        $usagePercent  = $messagesLimit > 0
-            ? min(100, round(($messagesUsed / $messagesLimit) * 100))
+        $tokensUsed  = $user->ai_tokens_used  ?? 0;
+        $tokensLimit = $user->ai_tokens_limit ?? 100000;
+        $usagePercent  = $tokensLimit > 0
+            ? min(100, round(($tokensUsed / $tokensLimit) * 100))
             : 0;
 
         $cases = CaseModel::where('user_id', $user->id)
@@ -41,8 +41,8 @@ class ProfileController extends Controller
             'topupAmount'       => session('topup_amount'),
             'twoFactor'         => session('twoFactor'),
             'usagePercent'      => $usagePercent,
-            'messagesUsed'      => $messagesUsed,
-            'messagesLimit'     => $messagesLimit,
+            'tokensUsed'        => $tokensUsed,
+            'tokensLimit'       => $tokensLimit,
             'casesCount'        => $cases->count(),
             'tasksCount'        => $user->tasks()->count(),
             'cases'             => $cases,
@@ -92,15 +92,12 @@ class ProfileController extends Controller
             'plan' => ['required', 'in:free,pro,business'],
         ]);
 
-        $limits = [
-            'free'     => 50,
-            'pro'      => 500,
-            'business' => 999999,
-        ];
+        $plan  = \App\Models\SubscriptionPlan::where('slug', $validated['plan'])->first();
+        $limit = $plan ? ($plan->tokens_limit === 0 ? 9999999 : $plan->tokens_limit) : 100000;
 
         $request->user()->update([
             'subscription_plan' => $validated['plan'],
-            'ai_messages_limit' => $limits[$validated['plan']],
+            'ai_tokens_limit'   => $limit,
         ]);
 
         return Redirect::route('profile.edit')->with('status', 'subscription-updated');

@@ -69,8 +69,8 @@ const textarea = ref(null);
 const page = usePage();
 const usagePercent = computed(() => {
     const user = page.props.auth.user;
-    if (!user || !user.ai_messages_limit) return 0;
-    return Math.round((user.ai_messages_used / user.ai_messages_limit) * 100);
+    if (!user || !user.ai_tokens_limit) return 0;
+    return Math.round((user.ai_tokens_used / user.ai_tokens_limit) * 100);
 });
 const currentCaseId = ref(props.activeCase?.id || null);
 let abortController = null;

@@ -168,7 +168,7 @@ const saveSettings = () => {
 
 /* ── Subscription plan management ───────────────────────── */
 const emptyPlan = () => ({
-    slug: '', name: '', description: '', price: 0, messages_limit: 50,
+    slug: '', name: '', description: '', price: 0, tokens_limit: 100000,
     features: '', stripe_price_id: '', color: '#7E75CE',
     is_popular: false, is_active: true, sort_order: 0,
 });
@@ -327,8 +327,8 @@ const nav = [
                         <div class="adm-stat-label">Opgaver</div>
                     </div>
                     <div class="adm-stat-card">
-                        <div class="adm-stat-value" style="color:#7c3aed">{{ stats.ai_messages_total.toLocaleString('da-DK') }}</div>
-                        <div class="adm-stat-label">AI-beskeder sendt</div>
+                        <div class="adm-stat-value" style="color:#7c3aed">{{ stats.ai_tokens_total.toLocaleString('da-DK') }}</div>
+                        <div class="adm-stat-label">AI-tokens brugt</div>
                     </div>
                 </div>
             </section>
@@ -374,8 +374,8 @@ const nav = [
                             <input v-model.number="newPlan.price" type="number" min="0" class="adm-input" />
                         </div>
                         <div class="adm-sp-field">
-                            <label>AI-beskeder/md <span class="adm-sp-hint">(0 = ubegrænset)</span></label>
-                            <input v-model.number="newPlan.messages_limit" type="number" min="0" class="adm-input" />
+                            <label>AI-tokens/md <span class="adm-sp-hint">(0 = ubegrænset)</span></label>
+                            <input v-model.number="newPlan.tokens_limit" type="number" min="0" class="adm-input" />
                         </div>
                         <div class="adm-sp-field">
                             <label>Stripe Price ID</label>
@@ -425,7 +425,7 @@ const nav = [
                                     <span v-if="sp.is_popular" class="adm-badge-popular">Populær</span>
                                     <span v-if="!sp.is_active" class="adm-badge-inactive">Inaktiv</span>
                                 </div>
-                                <div class="adm-sp-meta">{{ sp.price }} kr/md · {{ sp.messages_limit === 0 ? 'Ubegrænset' : sp.messages_limit + ' beskeder' }}</div>
+                                <div class="adm-sp-meta">{{ sp.price }} kr/md · {{ sp.tokens_limit === 0 ? 'Ubegrænset' : (sp.tokens_limit / 1000).toFixed(0) + 'K tokens' }}</div>
                             </div>
                             <div class="adm-sp-stripe" :class="sp.stripe_price_id ? 'adm-sp-stripe-ok' : 'adm-sp-stripe-missing'">
                                 <span v-if="sp.stripe_price_id">
@@ -456,8 +456,8 @@ const nav = [
                                     <input v-model.number="editPlan.price" type="number" min="0" class="adm-input" />
                                 </div>
                                 <div class="adm-sp-field">
-                                    <label>AI-beskeder/md <span class="adm-sp-hint">(0 = ubegrænset)</span></label>
-                                    <input v-model.number="editPlan.messages_limit" type="number" min="0" class="adm-input" />
+                                    <label>AI-tokens/md <span class="adm-sp-hint">(0 = ubegrænset)</span></label>
+                                    <input v-model.number="editPlan.tokens_limit" type="number" min="0" class="adm-input" />
                                 </div>
                                 <div class="adm-sp-field">
                                     <label>Stripe Price ID</label>
@@ -527,7 +527,7 @@ const nav = [
                                         <option value="business">Business</option>
                                     </select>
                                 </td>
-                                <td><span class="adm-ai-usage">{{ user.ai_messages_used }} / {{ user.ai_messages_limit === 99999 ? '∞' : user.ai_messages_limit }}</span></td>
+                                <td><span class="adm-ai-usage">{{ (user.ai_tokens_used / 1000).toFixed(1) }}K / {{ user.ai_tokens_limit >= 9999999 ? '∞' : (user.ai_tokens_limit / 1000).toFixed(0) + 'K' }}</span></td>
                                 <td class="adm-date">{{ formatDate(user.created_at) }}</td>
                                 <td>
                                     <button @click="router.get(route('admin.users.conversations', user.id))" class="adm-icon-btn" title="Se samtaler">

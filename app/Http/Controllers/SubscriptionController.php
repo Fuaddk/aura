@@ -17,8 +17,8 @@ class SubscriptionController extends Controller
     private function limitForPlan(string $slug): int
     {
         $plan = SubscriptionPlan::where('slug', $slug)->first();
-        if (!$plan) return 50;
-        return $plan->messages_limit === 0 ? 999999 : $plan->messages_limit;
+        if (!$plan) return 100000;
+        return $plan->tokens_limit === 0 ? 9999999 : $plan->tokens_limit;
     }
 
     public function plans(): Response
@@ -51,7 +51,7 @@ class SubscriptionController extends Controller
         }
 
         $price = $planModel->stripe_price_id;
-        $limit = $planModel->messages_limit === 0 ? 999999 : $planModel->messages_limit;
+        $limit = $planModel->tokens_limit === 0 ? 9999999 : $planModel->tokens_limit;
 
         try {
             // If already subscribed, swap plan. Otherwise create new subscription.
@@ -60,7 +60,7 @@ class SubscriptionController extends Controller
 
                 $user->update([
                     'subscription_plan' => $plan,
-                    'ai_messages_limit' => $limit,
+                    'ai_tokens_limit' => $limit,
                 ]);
 
                 return redirect()->route('profile.edit', ['section' => 'subscription'])
@@ -99,7 +99,7 @@ class SubscriptionController extends Controller
                 if ($plan && $session->payment_status === 'paid') {
                     $user->update([
                         'subscription_plan' => $plan,
-                        'ai_messages_limit' => $this->limitForPlan($plan),
+                        'ai_tokens_limit' => $this->limitForPlan($plan),
                     ]);
 
                     \App\Services\NotificationService::notifySubscriptionUpgraded($user, $plan);
@@ -150,7 +150,7 @@ class SubscriptionController extends Controller
 
         $user->update([
             'subscription_plan' => 'free',
-            'ai_messages_limit' => $this->limitForPlan('free'),
+            'ai_tokens_limit' => $this->limitForPlan('free'),
         ]);
 
         return redirect()->route('profile.edit', ['section' => 'subscription'])

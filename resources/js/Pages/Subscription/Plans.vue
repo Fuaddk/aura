@@ -19,7 +19,7 @@ const plans = computed(() => props.subscriptionPlans.map(sp => ({
     price:   String(sp.price),
     period:  sp.price > 0 ? '/md.' : '',
     description: sp.description || '',
-    messages: sp.messages_limit === 0 ? 'Ubegrænset' : `${sp.messages_limit} AI-beskeder/md.`,
+    messages: sp.tokens_limit === 0 ? 'Ubegrænset' : `${(sp.tokens_limit / 1000).toFixed(0)}K tokens/md.`,
     features: Array.isArray(sp.features) ? sp.features : [],
     color:   sp.color || '#9ca3af',
     popular: sp.is_popular,

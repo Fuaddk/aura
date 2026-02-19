@@ -33,8 +33,8 @@ class User extends Authenticatable
         'auto_refill_enabled',
         'auto_refill_threshold',
         'auto_refill_amount',
-        'ai_messages_used',
-        'ai_messages_limit',
+        'ai_tokens_used',
+        'ai_tokens_limit',
     ];
 
     protected $hidden = [
@@ -57,8 +57,8 @@ class User extends Authenticatable
             'auto_refill_enabled' => 'boolean',
             'auto_refill_threshold' => 'integer',
             'auto_refill_amount' => 'integer',
-            'ai_messages_used' => 'integer',
-            'ai_messages_limit' => 'integer',
+            'ai_tokens_used' => 'integer',
+            'ai_tokens_limit' => 'integer',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted',
             'two_factor_confirmed_at' => 'datetime',

@@ -27,7 +27,7 @@ class AdminController extends Controller
             'total_conversations' => CaseModel::count(),
             'total_documents'     => Document::count(),
             'total_tasks'         => Task::count(),
-            'ai_messages_total'   => (int) User::sum('ai_messages_used'),
+            'ai_tokens_total'     => (int) User::sum('ai_tokens_used'),
         ];
 
         $plans = User::selectRaw('subscription_plan, count(*) as count')
@@ -41,7 +41,7 @@ class AdminController extends Controller
 
         $users = User::orderByDesc('created_at')
             ->select('id', 'name', 'email', 'is_admin', 'subscription_plan',
-                     'ai_messages_used', 'ai_messages_limit', 'created_at', 'google_id')
+                     'ai_tokens_used', 'ai_tokens_limit', 'created_at', 'google_id')
             ->paginate(50);
 
         $knowledgeSources = KnowledgeChunk::selectRaw(
@@ -96,11 +96,12 @@ class AdminController extends Controller
     {
         $request->validate(['plan' => 'required|in:free,pro,business']);
 
-        $limits = ['free' => 50, 'pro' => 500, 'business' => 99999];
+        $plan  = \App\Models\SubscriptionPlan::where('slug', $request->plan)->first();
+        $limit = $plan ? ($plan->tokens_limit === 0 ? 9999999 : $plan->tokens_limit) : 100000;
 
         $user->update([
             'subscription_plan' => $request->plan,
-            'ai_messages_limit' => $limits[$request->plan],
+            'ai_tokens_limit'   => $limit,
         ]);
 
         return back()->with('success', "Plan opdateret til {$request->plan}.");
@@ -357,7 +358,7 @@ class AdminController extends Controller
             'name'            => 'required|string|max:100',
             'description'     => 'nullable|string|max:300',
             'price'           => 'required|integer|min:0',
-            'messages_limit'  => 'required|integer|min:0',
+            'tokens_limit'    => 'required|integer|min:0',
             'features'        => 'nullable|string',
             'stripe_price_id' => 'nullable|string|max:200',
             'color'           => 'nullable|string|max:20',
@@ -379,7 +380,7 @@ class AdminController extends Controller
             'name'            => 'required|string|max:100',
             'description'     => 'nullable|string|max:300',
             'price'           => 'required|integer|min:0',
-            'messages_limit'  => 'required|integer|min:0',
+            'tokens_limit'    => 'required|integer|min:0',
             'features'        => 'nullable|string',
             'stripe_price_id' => 'nullable|string|max:200',
             'color'           => 'nullable|string|max:20',

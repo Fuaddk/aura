@@ -10,8 +10,8 @@ const props = defineProps({
     topupAmount:       Number,
     twoFactor:         Object,
     usagePercent:      Number,
-    messagesUsed:      Number,
-    messagesLimit:     Number,
+    tokensUsed:        Number,
+    tokensLimit:       Number,
     casesCount:        Number,
     tasksCount:        Number,
     cases:             { type: Array, default: () => [] },
@@ -60,7 +60,7 @@ const plans = computed(() => props.subscriptionPlans.map(sp => ({
     id:       sp.slug,
     name:     sp.name,
     price:    String(sp.price),
-    messages: sp.messages_limit === 0 ? 'Ubegrænset' : `${sp.messages_limit} AI-beskeder/md.`,
+    messages: sp.tokens_limit === 0 ? 'Ubegrænset' : `${(sp.tokens_limit / 1000).toFixed(0)}K tokens/md.`,
     features: Array.isArray(sp.features) ? sp.features : [],
     color:    sp.color || '#9ca3af',
     popular:  sp.is_popular,
@@ -422,7 +422,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                                 <div class="st-bill-plan-info">
                                     <div class="st-bill-plan-name">{{ planLabel(currentPlan) }}-plan</div>
                                     <div v-if="isPaidPlan" class="st-muted">Månedlig · fornyes automatisk den {{ nextResetDate }}.</div>
-                                    <div v-else class="st-muted">Opgrader for at få flere AI-beskeder.</div>
+                                    <div v-else class="st-muted">Opgrader for at få flere AI-tokens.</div>
                                 </div>
                                 <Link :href="route('subscription.plans')" class="st-btn">{{ isPaidPlan ? 'Juster plan' : 'Opgrader' }}</Link>
                             </div>
@@ -563,7 +563,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                             <div class="st-usage-item">
                                 <div class="st-usage-top">
                                     <div>
-                                        <div class="st-usage-name">AI-beskeder</div>
+                                        <div class="st-usage-name">AI-tokens</div>
                                         <div class="st-muted" style="margin-top:0.125rem;font-size:0.8125rem">Nulstilles {{ nextResetDate }}</div>
                                     </div>
                                     <span class="st-usage-pct" :style="{ color: usageColor }">{{ usagePercent }}% brugt</span>

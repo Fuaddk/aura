@@ -133,7 +133,7 @@
 .sb-lock-dot {
     display: none;
     position: absolute;
-    bottom: -3px;
+    top: -3px;
     right: -4px;
     width: 0.75rem;
     height: 0.75rem;

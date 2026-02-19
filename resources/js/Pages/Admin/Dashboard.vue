@@ -508,6 +508,23 @@ const nav = [
                         </div>
                     </div>
                 </div>
+
+                <!-- Extra forbrug takst -->
+                <div style="margin-top:2rem">
+                    <h2 class="adm-section-title">Extra forbrug takst</h2>
+                    <div style="display:flex;align-items:flex-end;gap:1rem;max-width:32rem">
+                        <div style="flex:1">
+                            <label class="adm-settings-label">Kr. per token</label>
+                            <input v-model.number="extraRateForm.rate" type="number" step="0.00001" min="0.000001" max="1" class="adm-input" />
+                            <div style="font-size:0.8rem;color:#6b7280;margin-top:0.25rem">
+                                100 kr = {{ extraRateForm.rate > 0 ? Math.round(100 / extraRateForm.rate).toLocaleString('da-DK') : '∞' }} tokens
+                            </div>
+                        </div>
+                        <button @click="saveExtraRate" :disabled="savingExtraRate" class="adm-send-btn" style="white-space:nowrap">
+                            {{ savingExtraRate ? 'Gemmer…' : 'Gem takst' }}
+                        </button>
+                    </div>
+                </div>
             </section>
 
             <!-- BRUGERE -->
@@ -868,22 +885,6 @@ const nav = [
                     {{ savingSettings ? 'Gemmer…' : 'Gem indstillinger' }}
                 </button>
 
-                <!-- Extra forbrug takst -->
-                <div class="adm-settings-section" style="margin-top:2rem">
-                    <h3 class="adm-settings-label" style="margin-bottom:1rem;font-size:1rem;font-weight:600">Extra forbrug</h3>
-                    <div style="display:flex;align-items:flex-end;gap:1rem;max-width:32rem">
-                        <div style="flex:1">
-                            <label class="adm-settings-label">Kr. per token</label>
-                            <input v-model.number="extraRateForm.rate" type="number" step="0.00001" min="0.000001" max="1" class="adm-input" />
-                            <div style="font-size:0.8rem;color:#6b7280;margin-top:0.25rem">
-                                100 kr = {{ extraRateForm.rate > 0 ? Math.round(100 / extraRateForm.rate).toLocaleString('da-DK') : '∞' }} tokens
-                            </div>
-                        </div>
-                        <button @click="saveExtraRate" :disabled="savingExtraRate" class="adm-send-btn" style="white-space:nowrap">
-                            {{ savingExtraRate ? 'Gemmer…' : 'Gem takst' }}
-                        </button>
-                    </div>
-                </div>
             </section>
         </div>
     </div>

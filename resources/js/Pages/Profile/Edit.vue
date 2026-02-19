@@ -88,7 +88,7 @@ const showTopupModal  = ref(false);
 const topupPresets    = [50, 100, 200, 500];
 const topupAmount     = ref(100);
 const topupCustom     = ref('');
-const topupForm       = useForm({ amount: 100 });
+const topupLoading    = ref(false);
 
 const selectPreset = (val) => {
     topupAmount.value = val;
@@ -99,8 +99,25 @@ const onCustomInput = () => {
     if (!isNaN(v) && v >= 10) topupAmount.value = v;
 };
 const submitTopup = () => {
-    topupForm.amount = topupAmount.value;
-    topupForm.post(route('subscription.wallet.topup'));
+    if (topupAmount.value < 10 || topupLoading.value) return;
+    topupLoading.value = true;
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = route('subscription.wallet.topup');
+    form.style.display = 'none';
+
+    const addField = (name, value) => {
+        const el = document.createElement('input');
+        el.type = 'hidden'; el.name = name; el.value = value;
+        form.appendChild(el);
+    };
+
+    addField('_token', document.querySelector('meta[name="csrf-token"]')?.content ?? '');
+    addField('amount', topupAmount.value);
+
+    document.body.appendChild(form);
+    form.submit();
 };
 
 /* ── Password visibility ────────────────────────────────── */
@@ -549,9 +566,9 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 
                             <div class="st-extra-info-row" style="margin-top:1rem">
                                 <span class="st-usage-name">{{ walletBalance }} DKK</span>
-                                <span class="st-muted">Aktuel saldo · <span style="color:#ef4444">Auto-genopfyldning slået fra</span></span>
+                                <span class="st-muted">Aktuel saldo<template v-if="!extraUsageEnabled"> · <span style="color:#ef4444">Auto-genopfyldning slået fra</span></template></span>
                             </div>
-                            <button @click="showTopupModal = true" class="st-btn st-btn-outline" style="margin-top:0.875rem">Køb mere</button>
+                            <button @click="showTopupModal = true" :disabled="!extraUsageEnabled" class="st-btn st-btn-outline" style="margin-top:0.875rem">Køb mere</button>
                         </template>
 
                     </div><!-- st-content -->
@@ -607,8 +624,8 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                 <!-- Actions -->
                 <div class="wt-actions">
                     <button @click="showTopupModal = false" class="wt-btn-cancel">Annuller</button>
-                    <button @click="submitTopup" :disabled="topupForm.processing || topupAmount < 10" class="wt-btn-pay">
-                        <span v-if="topupForm.processing" class="st-btn-loading"><span class="st-spin"></span>Sender…</span>
+                    <button @click="submitTopup" :disabled="topupLoading || topupAmount < 10" class="wt-btn-pay">
+                        <span v-if="topupLoading" class="st-btn-loading"><span class="st-spin"></span>Sender…</span>
                         <span v-else>Fyld op</span>
                     </button>
                 </div>

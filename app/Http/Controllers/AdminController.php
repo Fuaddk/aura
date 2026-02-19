@@ -196,14 +196,25 @@ class AdminController extends Controller
     public function uploadKnowledgeDocument(Request $request): RedirectResponse
     {
         $request->validate([
-            'file'     => 'required|file|mimes:txt|max:10240',
+            'file'     => 'required|file|mimes:txt,pdf,docx,doc|max:30720',
             'title'    => 'required|string|max:200',
             'category' => 'required|string|max:100',
         ]);
 
-        $text = file_get_contents($request->file('file')->getRealPath());
-        $filename = $request->file('file')->getClientOriginalName();
+        $file      = $request->file('file');
+        $filename  = $file->getClientOriginalName();
+        $extension = strtolower($file->getClientOriginalExtension());
         $sourceUrl = 'upload:/' . $filename;
+
+        $text = match($extension) {
+            'pdf'  => $this->extractPdfText($file->getRealPath()),
+            'docx', 'doc' => $this->extractWordText($file->getRealPath()),
+            default => file_get_contents($file->getRealPath()),
+        };
+
+        if (empty(trim($text))) {
+            return back()->with('error', 'Kunne ikke udtrække tekst fra dokumentet.');
+        }
 
         $service = new KnowledgeService();
         $chunks = $service->chunkText($text);
@@ -229,6 +240,45 @@ class AdminController extends Controller
         }
 
         return back()->with('success', count($chunks) . ' chunks gemt fra dokument.');
+    }
+
+    private function extractPdfText(string $path): string
+    {
+        try {
+            $parser   = new \Smalot\PdfParser\Parser();
+            $pdf      = $parser->parseFile($path);
+            return $pdf->getText();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('PDF parse failed', ['error' => $e->getMessage()]);
+            return '';
+        }
+    }
+
+    private function extractWordText(string $path): string
+    {
+        try {
+            $phpWord  = \PhpOffice\PhpWord\IOFactory::load($path);
+            $text     = '';
+            foreach ($phpWord->getSections() as $section) {
+                foreach ($section->getElements() as $element) {
+                    if (method_exists($element, 'getText')) {
+                        $text .= $element->getText() . "\n";
+                    } elseif (method_exists($element, 'getElements')) {
+                        foreach ($element->getElements() as $child) {
+                            if (method_exists($child, 'getText')) {
+                                $text .= $child->getText() . ' ';
+                            }
+                        }
+                        $text .= "\n";
+                    }
+                }
+                $text .= "\n";
+            }
+            return $text;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Word parse failed', ['error' => $e->getMessage()]);
+            return '';
+        }
     }
 
     public function deleteKnowledgeSource(Request $request): RedirectResponse

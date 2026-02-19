@@ -665,14 +665,14 @@ const nav = [
 
                     <!-- Upload document -->
                     <div class="adm-form-card">
-                        <h3 class="adm-form-heading">Upload dokument (.txt)</h3>
+                        <h3 class="adm-form-heading">Upload dokument</h3>
                         <div class="adm-field">
-                            <label class="adm-label">Fil</label>
-                            <input type="file" accept=".txt" @change="handleFileInput" class="adm-input adm-file-input" />
+                            <label class="adm-label">Fil <span style="color:#9ca3af;font-weight:400">(PDF, Word eller TXT · maks 30 MB)</span></label>
+                            <input type="file" accept=".txt,.pdf,.docx,.doc" @change="handleFileInput" class="adm-input adm-file-input" />
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">Titel</label>
-                            <input v-model="docTitle" class="adm-input" placeholder="Fx: Interne regler om bodeling" />
+                            <input v-model="docTitle" class="adm-input" placeholder="Fx: Forældreansvarslovens vejledning" />
                         </div>
                         <div class="adm-field">
                             <label class="adm-label">Kategori</label>
@@ -683,7 +683,7 @@ const nav = [
                         <button @click="uploadDoc" :disabled="uploadingDoc || !docFile || !docTitle" class="adm-send-btn">
                             {{ uploadingDoc ? 'Uploader og indekserer…' : 'Upload dokument' }}
                         </button>
-                        <p class="adm-hint">Teksten opdeles i chunks og indekseres automatisk med AI-embeddings.</p>
+                        <p class="adm-hint">Teksten udtrækkes automatisk, opdeles i chunks og indekseres med AI-embeddings.</p>
                     </div>
                 </div>
             </section>

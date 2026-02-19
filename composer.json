@@ -17,6 +17,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.24",
         "laravel/tinker": "^2.10.1",
+        "phpoffice/phpword": "^1.1",
         "pragmarx/google2fa-laravel": "^2.3",
         "sentry/sentry-laravel": "^4.20",
         "smalot/pdfparser": "^2.12",

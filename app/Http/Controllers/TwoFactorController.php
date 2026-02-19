@@ -53,7 +53,22 @@ class TwoFactorController extends Controller
         }
 
         if (!$google2fa->verifyKey($user->two_factor_secret, $request->code)) {
-            return back()->withErrors(['code' => 'Ugyldig bekræftelseskode. Prøv igen.']);
+            // Re-flash the QR code so the form stays visible after the failed attempt
+            $qrUrl = $google2fa->getQRCodeUrl(
+                config('app.name'),
+                $user->email,
+                $user->two_factor_secret
+            );
+            $renderer = new \BaconQrCode\Renderer\ImageRenderer(
+                new \BaconQrCode\Renderer\RendererStyle\RendererStyle(200),
+                new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
+            );
+            $writer = new \BaconQrCode\Writer($renderer);
+            $svg = $writer->writeString($qrUrl);
+
+            return back()
+                ->with('twoFactor', ['qrCodeSvg' => $svg, 'secret' => $user->two_factor_secret])
+                ->withErrors(['code' => 'Ugyldig bekræftelseskode. Prøv igen.']);
         }
 
         $codes = Collection::times(8, fn () => Str::random(10));

@@ -6,11 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AppSetting extends Model
 {
-    protected $primaryKey  = 'key';
-    protected $keyType     = 'string';
-    public    $incrementing = false;
-
-    protected $fillable = ['key', 'value', 'label'];
+    protected $fillable = ['key', 'value', 'is_secret'];
 
     public static function get(string $key, mixed $default = null): mixed
     {
@@ -19,6 +15,6 @@ class AppSetting extends Model
 
     public static function set(string $key, mixed $value): void
     {
-        static::where('key', $key)->update(['value' => $value, 'updated_at' => now()]);
+        static::where('key', $key)->update(['value' => $value]);
     }
 }

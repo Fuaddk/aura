@@ -89,10 +89,12 @@ const topupPresets    = [50, 100, 200, 500];
 const topupAmount     = ref(100);
 const topupCustom     = ref('');
 const topupLoading    = ref(false);
+const topupError      = ref('');
 
 const selectPreset = (val) => {
     topupAmount.value = val;
     topupCustom.value = '';
+    topupError.value  = '';
 };
 const onCustomInput = () => {
     const v = parseInt(topupCustom.value);
@@ -101,24 +103,16 @@ const onCustomInput = () => {
 const submitTopup = async () => {
     if (topupAmount.value < 10 || topupLoading.value) return;
     topupLoading.value = true;
+    topupError.value   = '';
 
     try {
-        const res = await fetch(route('subscription.wallet.topup'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: JSON.stringify({ amount: topupAmount.value }),
-        });
-
-        if (!res.ok) { topupLoading.value = false; return; }
-
-        const { url } = await res.json();
-        window.location.href = url;
-    } catch {
+        const { data } = await window.axios.post(
+            route('subscription.wallet.topup'),
+            { amount: topupAmount.value }
+        );
+        window.location.href = data.url;
+    } catch (e) {
+        topupError.value  = e?.response?.data?.message || e?.message || 'Ukendt fejl';
         topupLoading.value = false;
     }
 };
@@ -623,6 +617,9 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                     <span>Total</span>
                     <span class="wt-summary-amount">{{ topupAmount }} DKK</span>
                 </div>
+
+                <!-- Error -->
+                <p v-if="topupError" style="color:#ef4444;font-size:0.8125rem;margin:0">{{ topupError }}</p>
 
                 <!-- Actions -->
                 <div class="wt-actions">

@@ -157,6 +157,80 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * Opret Stripe Checkout session for wallet top-up (engangsbetaling).
+     */
+    public function walletTopup(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'integer', 'min:10', 'max:5000'],
+        ]);
+
+        $user   = $request->user();
+        $amount = (int) $validated['amount'];
+
+        // Ensure user has a Stripe customer record
+        if (!$user->stripe_id) {
+            $user->createOrGetStripeCustomer();
+        }
+
+        $session = \Laravel\Cashier\Cashier::stripe()->checkout->sessions->create([
+            'mode'     => 'payment',
+            'customer' => $user->stripe_id,
+            'line_items' => [[
+                'price_data' => [
+                    'currency'     => 'dkk',
+                    'unit_amount'  => $amount * 100,
+                    'product_data' => ['name' => 'Aura Extra Forbrug'],
+                ],
+                'quantity' => 1,
+            ]],
+            'success_url' => route('subscription.wallet.success') . '?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url'  => route('profile.edit'),
+            'metadata'    => [
+                'type'    => 'wallet_topup',
+                'amount'  => $amount,
+                'user_id' => $user->id,
+            ],
+            'locale' => 'da',
+        ]);
+
+        return redirect($session->url);
+    }
+
+    /**
+     * Håndter succesfuld wallet top-up fra Stripe Checkout.
+     */
+    public function walletSuccess(Request $request): RedirectResponse
+    {
+        $sessionId = $request->query('session_id');
+        $user      = $request->user();
+
+        if ($sessionId) {
+            try {
+                $session = \Laravel\Cashier\Cashier::stripe()->checkout->sessions->retrieve($sessionId);
+
+                if (
+                    $session->payment_status === 'paid' &&
+                    ($session->metadata->type ?? '') === 'wallet_topup'
+                ) {
+                    $amount = (int) ($session->metadata->amount ?? 0);
+                    if ($amount > 0) {
+                        $user->increment('wallet_balance', $amount);
+                    }
+
+                    return redirect()->route('profile.edit')
+                        ->with('status', 'wallet-topup-success')
+                        ->with('topup_amount', $amount);
+                }
+            } catch (\Exception $e) {
+                Log::error('Wallet topup success error', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return redirect()->route('profile.edit');
+    }
+
+    /**
      * Stripe Webhook — synkroniser abonnementsstatus automatisk.
      * Route er undtaget CSRF via VerifyCsrfToken.
      */

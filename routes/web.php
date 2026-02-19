@@ -77,6 +77,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
         Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
         Route::get('/subscription/portal', [SubscriptionController::class, 'portal'])->name('subscription.portal');
+        Route::post('/subscription/wallet/topup', [SubscriptionController::class, 'walletTopup'])->name('subscription.wallet.topup');
+        Route::get('/subscription/wallet/success', [SubscriptionController::class, 'walletSuccess'])->name('subscription.wallet.success');
     });
 });
 

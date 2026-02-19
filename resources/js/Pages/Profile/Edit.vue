@@ -7,6 +7,7 @@ import ChatSidebar from '@/Components/ChatSidebar.vue';
 const props = defineProps({
     mustVerifyEmail:   Boolean,
     status:            String,
+    topupAmount:       Number,
     twoFactor:         Object,
     usagePercent:      Number,
     messagesUsed:      Number,
@@ -81,6 +82,26 @@ const cancelSubscription = () => {
 
 /* ── Wallet ─────────────────────────────────────────────── */
 const walletBalance = computed(() => Number(authUser.value.wallet_balance || 0).toFixed(2));
+
+/* ── Wallet top-up modal ─────────────────────────────────── */
+const showTopupModal  = ref(false);
+const topupPresets    = [50, 100, 200, 500];
+const topupAmount     = ref(100);
+const topupCustom     = ref('');
+const topupForm       = useForm({ amount: 100 });
+
+const selectPreset = (val) => {
+    topupAmount.value = val;
+    topupCustom.value = '';
+};
+const onCustomInput = () => {
+    const v = parseInt(topupCustom.value);
+    if (!isNaN(v) && v >= 10) topupAmount.value = v;
+};
+const submitTopup = () => {
+    topupForm.amount = topupAmount.value;
+    topupForm.post(route('subscription.wallet.topup'));
+};
 
 /* ── Password visibility ────────────────────────────────── */
 const showCurrentPw = ref(false);
@@ -218,6 +239,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                         <div v-if="status === 'subscription-updated'"      class="st-banner st-banner-purple">Abonnement opdateret til {{ planLabel(currentPlan) }}.</div>
                         <div v-if="status === 'subscription-cancelled'"    class="st-banner st-banner-green">Dit abonnement er annulleret. Du er nu på Gratis-planen.</div>
                         <div v-if="status === 'subscription-payment-failed'" class="st-banner st-banner-red">Betalingen kunne ikke gennemføres. Din plan er ikke ændret. Tjek at dit kort har dækning og prøv igen.</div>
+                        <div v-if="status === 'wallet-topup-success'" class="st-banner st-banner-green">{{ topupAmount }} DKK er tilføjet til din saldo.</div>
 
                         <!-- ══════════════ GENERELT ══════════════ -->
                         <template v-if="activeSection === 'general'">
@@ -387,7 +409,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                                     <div class="st-bill-amount">{{ walletBalance }} DKK</div>
                                     <div class="st-muted">Aktuel saldo</div>
                                 </div>
-                                <button class="st-btn">Køb mere</button>
+                                <button @click="showTopupModal = true" class="st-btn">Køb mere</button>
                             </div>
 
                             </template>
@@ -529,7 +551,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                                 <span class="st-usage-name">{{ walletBalance }} DKK</span>
                                 <span class="st-muted">Aktuel saldo · <span style="color:#ef4444">Auto-genopfyldning slået fra</span></span>
                             </div>
-                            <button class="st-btn st-btn-outline" style="margin-top:0.875rem" :disabled="!extraUsageEnabled">Køb mere</button>
+                            <button @click="showTopupModal = true" class="st-btn st-btn-outline" style="margin-top:0.875rem">Køb mere</button>
                         </template>
 
                     </div><!-- st-content -->
@@ -537,6 +559,64 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
             </div><!-- page-scroll -->
         </div><!-- chat-main -->
     </div><!-- chat-container -->
+
+    <!-- ── Wallet top-up modal ─────────────────────────────── -->
+    <Teleport to="body">
+        <Transition name="modal-fade">
+        <div v-if="showTopupModal" class="wt-overlay" @click.self="showTopupModal = false">
+            <div class="wt-modal">
+                <div class="wt-header">
+                    <h3 class="wt-title">Køb extra forbrug</h3>
+                    <button @click="showTopupModal = false" class="wt-close">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" /></svg>
+                    </button>
+                </div>
+
+                <p class="wt-sub">Vælg et beløb at tilføje til din saldo. Bruges automatisk når din månedlige kvote er opbrugt.</p>
+
+                <!-- Preset amounts -->
+                <div class="wt-presets">
+                    <button
+                        v-for="p in topupPresets" :key="p"
+                        @click="selectPreset(p)"
+                        :class="['wt-preset', topupAmount === p && !topupCustom ? 'wt-preset-active' : '']"
+                    >{{ p }} DKK</button>
+                </div>
+
+                <!-- Custom amount -->
+                <div class="wt-custom-row">
+                    <span class="wt-custom-label">Andet beløb</span>
+                    <div class="wt-custom-wrap">
+                        <input
+                            v-model="topupCustom"
+                            @input="onCustomInput"
+                            type="number" min="10" max="5000"
+                            placeholder="fx. 350"
+                            class="wt-custom-input"
+                        />
+                        <span class="wt-custom-suffix">DKK</span>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="wt-summary">
+                    <span>Total</span>
+                    <span class="wt-summary-amount">{{ topupAmount }} DKK</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="wt-actions">
+                    <button @click="showTopupModal = false" class="wt-btn-cancel">Annuller</button>
+                    <button @click="submitTopup" :disabled="topupForm.processing || topupAmount < 10" class="wt-btn-pay">
+                        <span v-if="topupForm.processing" class="st-btn-loading"><span class="st-spin"></span>Sender…</span>
+                        <span v-else>Betal {{ topupAmount }} DKK</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        </Transition>
+    </Teleport>
+
     </ChatLayout>
 </template>
 
@@ -926,4 +1006,118 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 .st-toggle-on { background: #7E75CE; }
 .st-toggle-thumb { position: absolute; top: 0.1875rem; left: 0.1875rem; width: 1.125rem; height: 1.125rem; border-radius: 9999px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; display: block; }
 .st-toggle-on .st-toggle-thumb { transform: translateX(1.25rem); }
+
+/* ── Wallet top-up modal ─────────────────────────────────── */
+.wt-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+}
+.wt-modal {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    width: 100%; max-width: 26rem;
+    padding: 1.75rem;
+    display: flex; flex-direction: column; gap: 1.25rem;
+}
+.wt-header {
+    display: flex; align-items: center; justify-content: space-between;
+}
+.wt-title {
+    font-size: 1.0625rem; font-weight: 700; color: #111827; margin: 0;
+}
+.wt-close {
+    background: none; border: none; cursor: pointer;
+    color: #9ca3af; padding: 0.25rem; border-radius: 0.375rem;
+    display: flex; transition: color 0.15s, background 0.15s;
+}
+.wt-close:hover { color: #374151; background: #f3f4f6; }
+.wt-close svg { width: 1.125rem; height: 1.125rem; }
+
+.wt-sub {
+    font-size: 0.875rem; color: #6b7280; line-height: 1.5; margin: 0;
+}
+
+.wt-presets {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.625rem;
+}
+.wt-preset {
+    padding: 0.625rem 0.5rem; font-size: 0.875rem; font-weight: 600;
+    color: #374151; background: #f9fafb;
+    border: 1.5px solid #e5e7eb; border-radius: 0.625rem;
+    cursor: pointer; text-align: center;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.wt-preset:hover { border-color: #7E75CE; background: #f5f3ff; color: #5b21b6; }
+.wt-preset-active {
+    border-color: #7E75CE; background: #f5f3ff; color: #5b21b6;
+}
+
+.wt-custom-row {
+    display: flex; align-items: center; gap: 0.875rem;
+}
+.wt-custom-label {
+    font-size: 0.8125rem; font-weight: 500; color: #6b7280; white-space: nowrap;
+}
+.wt-custom-wrap {
+    display: flex; align-items: center; flex: 1;
+    border: 1.5px solid #e5e7eb; border-radius: 0.5rem;
+    background: #fafafa; overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.wt-custom-wrap:focus-within {
+    border-color: #7E75CE; box-shadow: 0 0 0 3px rgba(126,117,206,0.1); background: #fff;
+}
+.wt-custom-input {
+    flex: 1; border: none; outline: none; background: transparent;
+    padding: 0.5625rem 0.75rem; font-size: 0.9375rem; color: #111827;
+    min-width: 0;
+}
+.wt-custom-input::-webkit-outer-spin-button,
+.wt-custom-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.wt-custom-suffix {
+    padding: 0 0.75rem; font-size: 0.875rem; color: #9ca3af; font-weight: 500;
+}
+
+.wt-summary {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.625rem;
+    font-size: 0.875rem; color: #374151; font-weight: 500;
+}
+.wt-summary-amount {
+    font-size: 1.0625rem; font-weight: 700; color: #111827;
+}
+
+.wt-actions {
+    display: flex; gap: 0.75rem; justify-content: flex-end;
+}
+.wt-btn-cancel {
+    padding: 0.5625rem 1.125rem; font-size: 0.875rem; font-weight: 500;
+    color: #6b7280; background: #fff;
+    border: 1.5px solid #e5e7eb; border-radius: 0.5rem;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.wt-btn-cancel:hover { background: #f9fafb; border-color: #9ca3af; color: #374151; }
+.wt-btn-pay {
+    padding: 0.5625rem 1.375rem; font-size: 0.875rem; font-weight: 600;
+    color: #fff; background: #7E75CE;
+    border: none; border-radius: 0.5rem;
+    cursor: pointer; transition: background 0.15s, opacity 0.15s;
+    display: inline-flex; align-items: center; gap: 0.375rem;
+}
+.wt-btn-pay:hover:not(:disabled) { background: #6d64bd; }
+.wt-btn-pay:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Modal transition ────────────────────────────────────── */
+.modal-fade-enter-active,
+.modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-active .wt-modal,
+.modal-fade-leave-active .wt-modal { transition: transform 0.2s ease, opacity 0.2s ease; }
+.modal-fade-enter-from,
+.modal-fade-leave-to { opacity: 0; }
+.modal-fade-enter-from .wt-modal,
+.modal-fade-leave-to .wt-modal { transform: translateY(0.5rem) scale(0.97); opacity: 0; }
 </style>

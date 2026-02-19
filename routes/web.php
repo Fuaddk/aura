@@ -37,13 +37,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/{task}/documents', [TaskController::class, 'saveDocument'])->name('tasks.documents.save');
         Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
-        Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
-        Route::get('/calendar/ics', [CalendarController::class, 'ics'])->name('calendar.ics');
-        Route::get('/inbox', [InboxController::class, 'index'])->name('inbox.index');
-        Route::post('/inbox/connect', [InboxController::class, 'connect'])->name('inbox.connect');
-        Route::delete('/inbox/accounts/{account}', [InboxController::class, 'disconnect'])->name('inbox.disconnect');
-        Route::post('/inbox/accounts/{account}/sync', [InboxController::class, 'sync'])->name('inbox.sync');
-        Route::patch('/inbox/accounts/{account}/auto-sync', [InboxController::class, 'toggleAutoSync'])->name('inbox.auto-sync');
+        Route::middleware('requires_plan:basis,pro,business')->group(function () {
+            Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+            Route::get('/calendar/ics', [CalendarController::class, 'ics'])->name('calendar.ics');
+        });
+        Route::middleware('requires_plan:pro,business')->group(function () {
+            Route::get('/inbox', [InboxController::class, 'index'])->name('inbox.index');
+            Route::post('/inbox/connect', [InboxController::class, 'connect'])->name('inbox.connect');
+            Route::delete('/inbox/accounts/{account}', [InboxController::class, 'disconnect'])->name('inbox.disconnect');
+            Route::post('/inbox/accounts/{account}/sync', [InboxController::class, 'sync'])->name('inbox.sync');
+            Route::patch('/inbox/accounts/{account}/auto-sync', [InboxController::class, 'toggleAutoSync'])->name('inbox.auto-sync');
+        });
         Route::delete('/cases/{case}', [ChatController::class, 'destroyCase'])->name('cases.destroy');
         Route::delete('/cases/period/{period}', [ChatController::class, 'destroyPeriod'])->name('cases.destroy.period');
         // Notifications

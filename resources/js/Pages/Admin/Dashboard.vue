@@ -510,17 +510,24 @@ const nav = [
                 </div>
 
                 <!-- Extra forbrug takst -->
-                <div style="margin-top:2rem">
+                <div style="margin-top:2.5rem">
                     <h2 class="adm-section-title">Extra forbrug takst</h2>
-                    <div style="display:flex;align-items:flex-end;gap:1rem;max-width:32rem">
-                        <div style="flex:1">
+                    <div class="adm-extra-rate-card">
+                        <div class="adm-extra-rate-field">
                             <label class="adm-settings-label">Kr. per token</label>
-                            <input v-model.number="extraRateForm.rate" type="number" step="0.00001" min="0.000001" max="1" class="adm-input" />
-                            <div style="font-size:0.8rem;color:#6b7280;margin-top:0.25rem">
-                                100 kr = {{ extraRateForm.rate > 0 ? Math.round(100 / extraRateForm.rate).toLocaleString('da-DK') : '∞' }} tokens
+                            <input v-model.number="extraRateForm.rate" type="number" step="0.00001" min="0.000001" max="1" class="adm-input" style="max-width:14rem" />
+                        </div>
+                        <div class="adm-extra-rate-preview">
+                            <div class="adm-extra-rate-preview-item">
+                                <span class="adm-extra-rate-preview-label">100 kr =</span>
+                                <span class="adm-extra-rate-preview-value">{{ extraRateForm.rate > 0 ? Math.round(100 / extraRateForm.rate).toLocaleString('da-DK') : '∞' }} tokens</span>
+                            </div>
+                            <div class="adm-extra-rate-preview-item">
+                                <span class="adm-extra-rate-preview-label">1.000 tokens =</span>
+                                <span class="adm-extra-rate-preview-value">{{ extraRateForm.rate > 0 ? (1000 * extraRateForm.rate).toFixed(2).replace('.', ',') : '0' }} kr</span>
                             </div>
                         </div>
-                        <button @click="saveExtraRate" :disabled="savingExtraRate" class="adm-send-btn" style="white-space:nowrap">
+                        <button @click="saveExtraRate" :disabled="savingExtraRate" class="adm-btn-primary">
                             {{ savingExtraRate ? 'Gemmer…' : 'Gem takst' }}
                         </button>
                     </div>
@@ -1006,6 +1013,12 @@ const nav = [
 
 /* Settings */
 .adm-settings-section { margin-bottom: 2rem; }
+.adm-extra-rate-card { display: flex; align-items: flex-end; gap: 1.5rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem 1.5rem; flex-wrap: wrap; }
+.adm-extra-rate-field { display: flex; flex-direction: column; gap: 0.375rem; }
+.adm-extra-rate-preview { display: flex; gap: 1.5rem; }
+.adm-extra-rate-preview-item { display: flex; flex-direction: column; gap: 0.125rem; }
+.adm-extra-rate-preview-label { font-size: 0.75rem; color: #6b7280; }
+.adm-extra-rate-preview-value { font-size: 1rem; font-weight: 600; color: #111827; }
 .adm-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 1.25rem; }
 .adm-set-badge { font-size: 0.625rem; font-weight: 700; background: #dcfce7; color: #166534; padding: 0.125rem 0.4rem; border-radius: 9999px; }
 

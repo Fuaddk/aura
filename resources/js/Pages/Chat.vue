@@ -3,7 +3,7 @@ import { ref, onMounted, nextTick, computed } from 'vue';
 import ChatLayout from '@/Layouts/ChatLayout.vue';
 import ChatSidebar from '@/Components/ChatSidebar.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -66,6 +66,12 @@ const isLoading = ref(false);
 const chatContainer = ref(null);
 const sidebarOpen = ref(true);
 const textarea = ref(null);
+const page = usePage();
+const usagePercent = computed(() => {
+    const user = page.props.auth.user;
+    if (!user || !user.ai_messages_limit) return 0;
+    return Math.round((user.ai_messages_used / user.ai_messages_limit) * 100);
+});
 const currentCaseId = ref(props.activeCase?.id || null);
 let abortController = null;
 
@@ -492,6 +498,15 @@ onMounted(() => {
                             <span class="chat-file-preview-name">{{ uploadPreview.name }}</span>
                             <span class="chat-file-preview-size">{{ formatBytes(uploadPreview.size) }}</span>
                             <button @click="clearUpload" class="chat-file-preview-remove" title="Fjern fil">×</button>
+                        </div>
+
+                        <!-- Usage warning -->
+                        <div v-if="usagePercent >= 80" class="chat-usage-warning" :class="usagePercent >= 100 ? 'chat-usage-critical' : ''">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="chat-usage-icon">
+                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
+                            </svg>
+                            <span v-if="usagePercent >= 100">Du har brugt alle dine beskeder denne måned. <a :href="route('profile.edit')" class="chat-usage-link">Opgrader din plan →</a></span>
+                            <span v-else>Du har brugt {{ usagePercent }}% af dit månedlige forbrug. <a :href="route('profile.edit')" class="chat-usage-link">Opgrader plan →</a></span>
                         </div>
 
                         <div class="chat-input-container">

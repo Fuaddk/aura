@@ -20,8 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'admin'          => \App\Http\Middleware\EnsureAdmin::class,
-            'requires_plan'  => \App\Http\Middleware\RequiresPlan::class,
+            'admin'            => \App\Http\Middleware\EnsureAdmin::class,
+            'requires_plan'    => \App\Http\Middleware\RequiresPlan::class,
+            'requires_feature' => \App\Http\Middleware\RequiresFeature::class,
         ]);
 
         // Stripe webhook must bypass CSRF verification

@@ -183,6 +183,7 @@ const emptyPlan = () => ({
     slug: '', name: '', description: '', price: 0, tokens_limit: 100000,
     features: '', stripe_price_id: '', color: '#7E75CE',
     is_popular: false, is_active: true, sort_order: 0,
+    feature_flags: { calendar: false, inbox: false },
 });
 
 const showNewPlanForm = ref(false);
@@ -199,7 +200,8 @@ const startEditPlan = (plan) => {
     editingPlanId.value = plan.id;
     editPlan.value = {
         ...plan,
-        features: featuresText(plan.features),
+        features:      featuresText(plan.features),
+        feature_flags: { calendar: false, inbox: false, ...(plan.feature_flags || {}) },
     };
 };
 
@@ -414,6 +416,13 @@ const nav = [
                         <input v-model="newPlan.description" type="text" placeholder="Kort beskrivelse af pakken" class="adm-input" />
                     </div>
                     <div class="adm-sp-field" style="margin-top:.75rem">
+                        <label>Adgang til funktioner</label>
+                        <div class="adm-sp-checkboxes" style="margin-top:.25rem">
+                            <label><input type="checkbox" v-model="newPlan.feature_flags.calendar" /> Kalender</label>
+                            <label><input type="checkbox" v-model="newPlan.feature_flags.inbox" /> Indbakke</label>
+                        </div>
+                    </div>
+                    <div class="adm-sp-field" style="margin-top:.75rem">
                         <label>Features <span class="adm-sp-hint">(én per linje)</span></label>
                         <textarea v-model="newPlan.features" rows="4" placeholder="500 AI-beskeder om måneden&#10;Ubegrænset sager&#10;Dokumentupload" class="adm-input adm-textarea"></textarea>
                     </div>
@@ -494,6 +503,13 @@ const nav = [
                             <div class="adm-sp-field" style="margin-top:.75rem">
                                 <label>Beskrivelse</label>
                                 <input v-model="editPlan.description" type="text" class="adm-input" />
+                            </div>
+                            <div class="adm-sp-field" style="margin-top:.75rem">
+                                <label>Adgang til funktioner</label>
+                                <div class="adm-sp-checkboxes" style="margin-top:.25rem">
+                                    <label><input type="checkbox" v-model="editPlan.feature_flags.calendar" /> Kalender</label>
+                                    <label><input type="checkbox" v-model="editPlan.feature_flags.inbox" /> Indbakke</label>
+                                </div>
                             </div>
                             <div class="adm-sp-field" style="margin-top:.75rem">
                                 <label>Features <span class="adm-sp-hint">(én per linje)</span></label>

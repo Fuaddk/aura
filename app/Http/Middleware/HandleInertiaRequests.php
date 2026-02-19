@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\EmailAccount;
+use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
@@ -48,6 +49,10 @@ class HandleInertiaRequests extends Middleware
                     'auto_refill_amount'    => $user->auto_refill_amount,
                     'two_factor_confirmed_at' => $user->two_factor_confirmed_at,
                 ] : null,
+                'plan_features' => $uid ? Cache::remember("user:{$uid}:plan_features", 300, function () use ($user) {
+                    $plan = SubscriptionPlan::where('slug', $user->subscription_plan)->first();
+                    return $plan?->feature_flags ?? ['calendar' => false, 'inbox' => false];
+                }) : ['calendar' => false, 'inbox' => false],
             ],
             'pendingTaskCount' => fn () => $uid
                 ? Cache::remember("user:{$uid}:pending_tasks", 120, fn () =>

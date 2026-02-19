@@ -366,17 +366,20 @@ class AdminController extends Controller
     public function storePlan(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'slug'            => 'required|string|max:50|unique:subscription_plans,slug|regex:/^[a-z0-9\-]+$/',
-            'name'            => 'required|string|max:100',
-            'description'     => 'nullable|string|max:300',
-            'price'           => 'required|integer|min:0',
-            'tokens_limit'    => 'required|integer|min:0',
-            'features'        => 'nullable|string',
-            'stripe_price_id' => 'nullable|string|max:200',
-            'color'           => 'nullable|string|max:20',
-            'is_popular'      => 'boolean',
-            'is_active'       => 'boolean',
-            'sort_order'      => 'integer|min:0',
+            'slug'                     => 'required|string|max:50|unique:subscription_plans,slug|regex:/^[a-z0-9\-]+$/',
+            'name'                     => 'required|string|max:100',
+            'description'              => 'nullable|string|max:300',
+            'price'                    => 'required|integer|min:0',
+            'tokens_limit'             => 'required|integer|min:0',
+            'features'                 => 'nullable|string',
+            'feature_flags'            => 'nullable|array',
+            'feature_flags.calendar'   => 'boolean',
+            'feature_flags.inbox'      => 'boolean',
+            'stripe_price_id'          => 'nullable|string|max:200',
+            'color'                    => 'nullable|string|max:20',
+            'is_popular'               => 'boolean',
+            'is_active'                => 'boolean',
+            'sort_order'               => 'integer|min:0',
         ]);
 
         $data['features'] = $this->parseFeatures($data['features'] ?? '');
@@ -389,19 +392,27 @@ class AdminController extends Controller
     public function updateSubscriptionPlan(Request $request, SubscriptionPlan $plan): RedirectResponse
     {
         $data = $request->validate([
-            'name'            => 'required|string|max:100',
-            'description'     => 'nullable|string|max:300',
-            'price'           => 'required|integer|min:0',
-            'tokens_limit'    => 'required|integer|min:0',
-            'features'        => 'nullable|string',
-            'stripe_price_id' => 'nullable|string|max:200',
-            'color'           => 'nullable|string|max:20',
-            'is_popular'      => 'boolean',
-            'is_active'       => 'boolean',
-            'sort_order'      => 'integer|min:0',
+            'name'                     => 'required|string|max:100',
+            'description'              => 'nullable|string|max:300',
+            'price'                    => 'required|integer|min:0',
+            'tokens_limit'             => 'required|integer|min:0',
+            'features'                 => 'nullable|string',
+            'feature_flags'            => 'nullable|array',
+            'feature_flags.calendar'   => 'boolean',
+            'feature_flags.inbox'      => 'boolean',
+            'stripe_price_id'          => 'nullable|string|max:200',
+            'color'                    => 'nullable|string|max:20',
+            'is_popular'               => 'boolean',
+            'is_active'                => 'boolean',
+            'sort_order'               => 'integer|min:0',
         ]);
 
         $data['features'] = $this->parseFeatures($data['features'] ?? '');
+
+        // Clear plan_features cache for all users on this plan
+        \App\Models\User::where('subscription_plan', $plan->slug)
+            ->pluck('id')
+            ->each(fn ($id) => \Illuminate\Support\Facades\Cache::forget("user:{$id}:plan_features"));
 
         $plan->update($data);
 

@@ -38,10 +38,10 @@ const openGroupMenu = ref(null);
 const deletingCase = ref(null);
 const deletingGroup = ref(null);
 
-// Plan feature access
-const plan = computed(() => page.props.auth?.user?.subscription_plan ?? 'free');
-const canCalendar = computed(() => ['basis', 'pro'].includes(plan.value));
-const canInbox    = computed(() => plan.value === 'pro');
+// Plan feature access — driven by DB via plan_features shared prop
+const planFeatures = computed(() => page.props.auth?.plan_features ?? { calendar: false, inbox: false });
+const canCalendar  = computed(() => planFeatures.value.calendar === true);
+const canInbox     = computed(() => planFeatures.value.inbox === true);
 
 // Task data from shared props
 const pendingTaskCount = computed(() => page.props.pendingTaskCount || 0);

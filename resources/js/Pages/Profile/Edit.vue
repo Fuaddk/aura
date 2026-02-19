@@ -184,7 +184,36 @@ const regenerateRecoveryCodes = () => {
 };
 
 /* ── Extra usage toggle ─────────────────────────────────── */
-const extraUsageEnabled = ref(false);
+const extraUsageEnabled   = ref(!!authUser.value.extra_usage_enabled);
+const autoRefillEnabled   = ref(!!authUser.value.auto_refill_enabled);
+const autoRefillThreshold = ref(authUser.value.auto_refill_threshold ?? 50);
+const autoRefillAmount    = ref(authUser.value.auto_refill_amount ?? 100);
+const extraUsageSaving    = ref(false);
+
+const saveExtraUsage = async (patch = {}) => {
+    extraUsageSaving.value = true;
+    try {
+        await window.axios.patch(route('profile.extra-usage'), {
+            extra_usage_enabled:  extraUsageEnabled.value,
+            auto_refill_enabled:  autoRefillEnabled.value,
+            auto_refill_threshold: autoRefillThreshold.value,
+            auto_refill_amount:   autoRefillAmount.value,
+            ...patch,
+        });
+    } finally {
+        extraUsageSaving.value = false;
+    }
+};
+
+const toggleExtraUsage = () => {
+    extraUsageEnabled.value = !extraUsageEnabled.value;
+    saveExtraUsage();
+};
+
+const toggleAutoRefill = () => {
+    autoRefillEnabled.value = !autoRefillEnabled.value;
+    saveExtraUsage();
+};
 
 /* ── Reset date helper ──────────────────────────────────── */
 const nextResetDate = computed(() => {
@@ -552,20 +581,56 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                             <!-- Extra usage -->
                             <h3 class="st-heading">Extra forbrug</h3>
 
+                            <!-- Toggle: slå extra forbrug til -->
                             <div class="st-extra-row">
                                 <div>
                                     <div class="st-usage-name">Slå extra forbrug til for at fortsætte brugen af Aura, hvis du rammer din grænse.</div>
                                 </div>
-                                <button @click="extraUsageEnabled = !extraUsageEnabled" :class="['st-toggle', extraUsageEnabled && 'st-toggle-on']" role="switch" :aria-checked="extraUsageEnabled">
+                                <button @click="toggleExtraUsage" :class="['st-toggle', extraUsageEnabled && 'st-toggle-on']" role="switch" :aria-checked="extraUsageEnabled" :disabled="extraUsageSaving">
                                     <span class="st-toggle-thumb"></span>
                                 </button>
                             </div>
 
-                            <div class="st-extra-info-row" style="margin-top:1rem">
-                                <span class="st-usage-name">{{ walletBalance }} DKK</span>
-                                <span class="st-muted">Aktuel saldo<template v-if="!extraUsageEnabled"> · <span style="color:#ef4444">Auto-genopfyldning slået fra</span></template></span>
-                            </div>
-                            <button @click="showTopupModal = true" :disabled="!extraUsageEnabled" class="st-btn st-btn-outline" style="margin-top:0.875rem">Køb mere</button>
+                            <template v-if="extraUsageEnabled">
+                                <!-- Aktuel saldo + køb mere -->
+                                <div class="st-extra-info-row" style="margin-top:1rem">
+                                    <span class="st-usage-name">{{ walletBalance }} DKK</span>
+                                    <span class="st-muted">Aktuel saldo</span>
+                                </div>
+                                <button @click="showTopupModal = true" class="st-btn st-btn-outline" style="margin-top:0.875rem">Køb mere</button>
+
+                                <div class="st-divider" style="margin:1.25rem 0"></div>
+
+                                <!-- Auto-genopfyldning -->
+                                <div class="st-extra-row">
+                                    <div>
+                                        <div class="st-usage-name">Auto-genopfyldning</div>
+                                        <div class="st-muted" style="margin-top:0.2rem;font-size:0.8125rem">Fyld automatisk op når saldo falder under tærsklen.</div>
+                                    </div>
+                                    <button @click="toggleAutoRefill" :class="['st-toggle', autoRefillEnabled && 'st-toggle-on']" role="switch" :aria-checked="autoRefillEnabled" :disabled="extraUsageSaving">
+                                        <span class="st-toggle-thumb"></span>
+                                    </button>
+                                </div>
+
+                                <template v-if="autoRefillEnabled">
+                                    <div class="st-refill-fields">
+                                        <div class="st-field-block">
+                                            <label class="st-label-block">Genopfyld når saldo er under</label>
+                                            <div class="wt-custom-wrap" style="max-width:10rem">
+                                                <input v-model.number="autoRefillThreshold" @change="saveExtraUsage()" type="number" min="10" max="1000" class="wt-custom-input" />
+                                                <span class="wt-custom-suffix">DKK</span>
+                                            </div>
+                                        </div>
+                                        <div class="st-field-block">
+                                            <label class="st-label-block">Genopfyld med</label>
+                                            <div class="wt-custom-wrap" style="max-width:10rem">
+                                                <input v-model.number="autoRefillAmount" @change="saveExtraUsage()" type="number" min="10" max="5000" class="wt-custom-input" />
+                                                <span class="wt-custom-suffix">DKK</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
                         </template>
 
                     </div><!-- st-content -->
@@ -1016,6 +1081,13 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+}
+
+.st-refill-fields {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
 }
 
 /* ── Toggle ──────────────────────────────────────────────── */

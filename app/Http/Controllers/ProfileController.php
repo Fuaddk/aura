@@ -6,6 +6,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\CaseModel;
 use App\Models\SubscriptionPlan;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -103,6 +104,23 @@ class ProfileController extends Controller
         ]);
 
         return Redirect::route('profile.edit')->with('status', 'subscription-updated');
+    }
+
+    /**
+     * Update extra usage / auto-refill settings.
+     */
+    public function updateExtraUsage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'extra_usage_enabled'  => 'required|boolean',
+            'auto_refill_enabled'  => 'boolean',
+            'auto_refill_threshold' => 'integer|min:10|max:1000',
+            'auto_refill_amount'   => 'integer|min:10|max:5000',
+        ]);
+
+        $request->user()->update($validated);
+
+        return response()->json(['ok' => true]);
     }
 
     /**

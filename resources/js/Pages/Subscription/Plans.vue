@@ -30,9 +30,25 @@ const plans = computed(() => props.subscriptionPlans.map(sp => ({
 const startCheckout = (plan) => {
     if (plan.id === currentPlan || plan.id === 'free' || !plan.hasStripe || loading.value) return;
     loading.value = plan.id;
-    router.post(route('subscription.checkout'), { plan: plan.id }, {
-        onFinish: () => { loading.value = null; },
-    });
+
+    // Use native form submit — Inertia's router.post() cannot follow external
+    // redirects (Stripe) due to CORS. A real form POST lets the browser handle it.
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = route('subscription.checkout');
+    form.style.display = 'none';
+
+    const addField = (name, value) => {
+        const el = document.createElement('input');
+        el.type = 'hidden'; el.name = name; el.value = value;
+        form.appendChild(el);
+    };
+
+    addField('_token', document.querySelector('meta[name="csrf-token"]')?.content ?? '');
+    addField('plan', plan.id);
+
+    document.body.appendChild(form);
+    form.submit();
 };
 
 const goBack = () => {

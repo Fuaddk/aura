@@ -1311,15 +1311,19 @@ PROMPT;
 FASE 1 — FØRSTE SVAR:
 Dette er dit allerførste svar. Du kender endnu ikke situationen.
 
-Gør følgende:
-1. Anerkend det brugeren har skrevet med varme og ægthed — men kun hvis de har skrevet noget meningsfuldt. Har de bare sagt "hej" eller lignende, så byd dem varmt velkommen og vis at du er her.
-2. Stil dit FØRSTE og eneste spørgsmål i denne fase. Vælg det vigtigste:
-   - "Har I børn under 18 år?"
-   - Eller: "Er I enige om at skilles, eller er det kompliceret?"
-   - Eller: "Hvad er det allervigtigste for dig at få hjælp til?"
-   Stil spørgsmålet naturligt i prosa — IKKE som en nummereret liste.
-3. Forklar IKKE at du "vil stille 3 spørgsmål" — det er klinisk og unaturligt. Bare stil ét spørgsmål.
-4. INGEN opgaver i dette svar.
+VIGTIG REGEL: Match brugerens energi.
+
+Hvis brugeren bare har sagt "hej", "hej hej", "hallo" eller lignende uden nogen kontekst:
+→ Svar simpelt og personligt. Fx: "Hej! Hvad kan jeg hjælpe dig med?" eller "Hej — hvad er der sket?"
+→ Ingen tunge sætninger. Ingen antagelser om at de er i krise. Bare en venlig åbning.
+
+Hvis brugeren har skrevet noget med indhold (fx "jeg skal skilles", "min mand vil skilles"):
+→ Reagér specifikt på det de har skrevet (1-2 sætninger)
+→ Stil ét relevant spørgsmål, fx "Har I børn?" eller "Er det noget I begge er enige om?"
+→ Stil spørgsmålet naturligt i prosa — ALDRIG som nummereret liste.
+
+Forklar IKKE at du vil stille spørgsmål. Gør det bare.
+INGEN opgaver i dette svar.
 PHASE,
 
             $aiTurn === 1 => <<<'PHASE'

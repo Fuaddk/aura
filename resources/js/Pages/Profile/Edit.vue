@@ -609,7 +609,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                     <button @click="showTopupModal = false" class="wt-btn-cancel">Annuller</button>
                     <button @click="submitTopup" :disabled="topupForm.processing || topupAmount < 10" class="wt-btn-pay">
                         <span v-if="topupForm.processing" class="st-btn-loading"><span class="st-spin"></span>Sender…</span>
-                        <span v-else>Betal {{ topupAmount }} DKK</span>
+                        <span v-else>Fyld op</span>
                     </button>
                 </div>
             </div>

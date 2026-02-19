@@ -37,11 +37,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/{task}/documents', [TaskController::class, 'saveDocument'])->name('tasks.documents.save');
         Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
         Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
-        Route::middleware('requires_plan:basis,pro,business')->group(function () {
+        Route::middleware('requires_plan:basis,pro')->group(function () {
             Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
             Route::get('/calendar/ics', [CalendarController::class, 'ics'])->name('calendar.ics');
         });
-        Route::middleware('requires_plan:pro,business')->group(function () {
+        Route::middleware('requires_plan:pro')->group(function () {
             Route::get('/inbox', [InboxController::class, 'index'])->name('inbox.index');
             Route::post('/inbox/connect', [InboxController::class, 'connect'])->name('inbox.connect');
             Route::delete('/inbox/accounts/{account}', [InboxController::class, 'disconnect'])->name('inbox.disconnect');

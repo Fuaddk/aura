@@ -40,8 +40,8 @@ const deletingGroup = ref(null);
 
 // Plan feature access
 const plan = computed(() => page.props.auth?.user?.subscription_plan ?? 'free');
-const canCalendar = computed(() => ['basis', 'pro', 'business'].includes(plan.value));
-const canInbox    = computed(() => ['pro', 'business'].includes(plan.value));
+const canCalendar = computed(() => ['basis', 'pro'].includes(plan.value));
+const canInbox    = computed(() => plan.value === 'pro');
 
 // Task data from shared props
 const pendingTaskCount = computed(() => page.props.pendingTaskCount || 0);
@@ -257,11 +257,9 @@ const groupedCases = computed(() => {
                     {{ connectedEmailCount }} tilsluttet
                 </span>
             </Link>
-            <Link v-else :href="route('subscription.plans')" class="sidebar-menu-item sidebar-menu-item-locked" title="Kræver Pro-plan eller højere">
+            <Link v-else :href="route('subscription.plans')" class="sidebar-menu-item sidebar-menu-item-locked" title="Kræver Pro-plan">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z" />
-                </svg>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="position:absolute;left:0.9rem">
                 </svg>
                 <span class="sidebar-menu-label flex-1">Indbakke</span>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="sb-lock-icon"><path fill-rule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7A1.5 1.5 0 0 0 3 8.5v4A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-4A1.5 1.5 0 0 0 11 7V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clip-rule="evenodd" /></svg>

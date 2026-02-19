@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Cashier\Checkout;
 use Laravel\Cashier\Exceptions\IncompletePayment;
 
 class SubscriptionController extends Controller
@@ -32,7 +33,7 @@ class SubscriptionController extends Controller
     /**
      * Redirect til Stripe Checkout for at oprette eller skifte abonnement.
      */
-    public function checkout(Request $request): RedirectResponse
+    public function checkout(Request $request): RedirectResponse|Checkout
     {
         $validated = $request->validate([
             'plan' => ['required', 'string'],

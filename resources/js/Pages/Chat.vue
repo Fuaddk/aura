@@ -72,6 +72,11 @@ const usagePercent = computed(() => {
     if (!user || !user.ai_tokens_limit) return 0;
     return Math.round((user.ai_tokens_used / user.ai_tokens_limit) * 100);
 });
+const canSend = computed(() => {
+    if (usagePercent.value < 100) return true;
+    const user = page.props.auth.user;
+    return !!(user?.extra_usage_enabled && (user?.wallet_balance ?? 0) > 0);
+});
 const currentCaseId = ref(props.activeCase?.id || null);
 let abortController = null;
 
@@ -108,7 +113,7 @@ const sendMessage = async () => {
     const hasFile = !!uploadFile.value;
     if (!hasFile && !message.value.trim()) return;
     if (isLoading.value) return;
-    if (usagePercent.value >= 100) return;
+    if (!canSend.value) return;
     isLoading.value = true;
 
     const userMessage = message.value;
@@ -502,11 +507,21 @@ onMounted(() => {
                         </div>
 
                         <!-- Usage warning -->
-                        <div v-if="usagePercent >= 80" class="chat-usage-warning" :class="usagePercent >= 100 ? 'chat-usage-critical' : ''">
+                        <div v-if="usagePercent >= 80" class="chat-usage-warning" :class="!canSend ? 'chat-usage-critical' : ''">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="chat-usage-icon">
                                 <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
                             </svg>
-                            <span v-if="usagePercent >= 100">Du har brugt alle dine beskeder denne måned. <a :href="route('subscription.plans')" class="chat-usage-link">Opgrader din plan →</a></span>
+                            <template v-if="usagePercent >= 100">
+                                <span v-if="$page.props.auth.user?.extra_usage_enabled && ($page.props.auth.user?.wallet_balance ?? 0) > 0">
+                                    Du bruger nu din saldo · 0,00015 kr/token · Saldo: {{ Number($page.props.auth.user.wallet_balance).toFixed(2).replace('.', ',') }} kr.
+                                </span>
+                                <span v-else-if="$page.props.auth.user?.extra_usage_enabled">
+                                    Din saldo er tom. <a :href="route('profile.edit', { section: 'usage' })" class="chat-usage-link">Køb mere saldo →</a>
+                                </span>
+                                <span v-else>
+                                    Du har brugt alle dine tokens denne måned. <a :href="route('subscription.plans')" class="chat-usage-link">Opgrader din plan →</a>
+                                </span>
+                            </template>
                             <span v-else>Du har brugt {{ usagePercent }}% af dit månedlige forbrug. <a :href="route('subscription.plans')" class="chat-usage-link">Opgrader plan →</a></span>
                         </div>
 
@@ -524,15 +539,15 @@ onMounted(() => {
                                 v-model="message"
                                 @input="autoResizeTextarea"
                                 @keydown.enter.exact.prevent="sendMessage"
-                                :placeholder="usagePercent >= 100 ? 'Du har brugt alle dine beskeder denne måned...' : uploadPreview ? 'Tilføj en besked til dokumentet (valgfrit)...' : 'Skriv en besked...'"
+                                :placeholder="!canSend ? 'Ingen adgang – opgradér plan eller køb saldo...' : uploadPreview ? 'Tilføj en besked til dokumentet (valgfrit)...' : 'Skriv en besked...'"
                                 rows="1"
                                 class="chat-textarea"
-                                :disabled="isLoading || usagePercent >= 100"
+                                :disabled="isLoading || !canSend"
                             ></textarea>
                             <!-- Paperclip button -->
                             <button
                                 @click="fileInputRef.click()"
-                                :disabled="isLoading || usagePercent >= 100"
+                                :disabled="isLoading || !canSend"
                                 class="chat-attach-btn"
                                 title="Vedhæft dokument (PDF, billede, TXT)"
                             >
@@ -542,7 +557,7 @@ onMounted(() => {
                             </button>
                             <button
                                 @click="sendMessage"
-                                :disabled="(!message.trim() && !uploadFile) || isLoading || usagePercent >= 100"
+                                :disabled="(!message.trim() && !uploadFile) || isLoading || !canSend"
                                 class="chat-send-btn"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

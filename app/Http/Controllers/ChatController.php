@@ -348,14 +348,7 @@ class ChatController extends Controller
             return response()->json(['message' => 'Filtypen matcher ikke indholdet.'], 422);
         }
 
-        $limit = $user->ai_tokens_limit ?? 100000;
-        $used  = $user->ai_tokens_used   ?? 0;
-        if ($limit > 0 && $used >= $limit) {
-            return response()->json([
-                'error'   => 'message_limit_reached',
-                'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
-            ], 429);
-        }
+        if ($err = $this->checkTokenLimit($user)) return $err;
 
         $originalFilename = preg_replace('/[^\w\s\-\.]/', '_', $file->getClientOriginalName());
         $mimeType         = $file->getMimeType();
@@ -629,7 +622,7 @@ SECTION;
             // Estimate and track token usage (input + output chars / 4)
             $inputText  = collect($mistralMessages)->pluck('content')->join(' ');
             $tokensUsed = max(1, (int) ((mb_strlen($inputText) + mb_strlen($fullContent)) / 4));
-            $user->increment('ai_tokens_used', $tokensUsed);
+            $this->trackTokensAndDeductWallet($user, $tokensUsed);
 
             // Send done event
             echo 'data: ' . json_encode([
@@ -746,14 +739,7 @@ PROMPT;
         $user = auth()->user();
 
         // Enforce AI message limit (return JSON before opening stream)
-        $limit = $user->ai_tokens_limit ?? 100000;
-        $used  = $user->ai_tokens_used   ?? 0;
-        if ($limit > 0 && $used >= $limit) {
-            return response()->json([
-                'error'   => 'message_limit_reached',
-                'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
-            ], 429);
-        }
+        if ($err = $this->checkTokenLimit($user)) return $err;
 
         // Create case if first message
         if (empty($validated['case_id'])) {
@@ -1049,7 +1035,7 @@ PROMPT;
         // Estimate and track token usage (input history + output / 4)
         $inputText  = $history->pluck('content')->join(' ') . ' ' . $originalUserMessage;
         $tokensUsed = max(1, (int) ((mb_strlen($inputText) + mb_strlen($aiMessage)) / 4));
-        $user->increment('ai_tokens_used', $tokensUsed);
+        $this->trackTokensAndDeductWallet($user, $tokensUsed);
 
         if (!$case->title) {
             $this->generateTitle($case, $originalUserMessage);
@@ -1757,14 +1743,7 @@ LAW;
 
         $user = auth()->user();
 
-        $limit = $user->ai_tokens_limit ?? 100000;
-        $used  = $user->ai_tokens_used   ?? 0;
-        if ($limit > 0 && $used >= $limit) {
-            return response()->json([
-                'error'   => 'message_limit_reached',
-                'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
-            ], 429);
-        }
+        if ($err = $this->checkTokenLimit($user)) return $err;
 
         $originalFilename = preg_replace('/[^\w\s\-\.]/', '_', $file->getClientOriginalName());
         $mimeType         = $file->getMimeType();
@@ -2216,5 +2195,55 @@ SECTION;
             }
         }
         return ($nonText / max($len, 1)) < 0.10;
+    }
+
+    /**
+     * Check if the user is allowed to send a message.
+     * Returns a 429 JsonResponse if blocked, or null if OK.
+     */
+    private function checkTokenLimit(\App\Models\User $user): ?JsonResponse
+    {
+        $limit = $user->ai_tokens_limit ?? 100000;
+        $used  = $user->ai_tokens_used  ?? 0;
+
+        if ($limit > 0 && $used >= $limit) {
+            if (!$user->extra_usage_enabled) {
+                return response()->json([
+                    'error'   => 'message_limit_reached',
+                    'message' => 'Du har brugt alle dine AI-tokens denne måned. Opgradér din plan for at fortsætte.',
+                ], 429);
+            }
+            if (($user->wallet_balance ?? 0) <= 0) {
+                return response()->json([
+                    'error'   => 'wallet_empty',
+                    'message' => 'Du har brugt alle dine AI-tokens og din saldo er tom. Køb mere saldo for at fortsætte.',
+                ], 429);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Increment ai_tokens_used and deduct wallet balance for overage tokens.
+     * Rate: 0.00015 kr per token.
+     */
+    private function trackTokensAndDeductWallet(\App\Models\User $user, int $tokensUsed): void
+    {
+        $limit        = $user->ai_tokens_limit ?? 100000;
+        $previousUsed = $user->ai_tokens_used  ?? 0;
+
+        $user->increment('ai_tokens_used', $tokensUsed);
+
+        if ($limit > 0 && $user->extra_usage_enabled) {
+            $included      = max(0, $limit - $previousUsed);
+            $overageTokens = max(0, $tokensUsed - $included);
+            if ($overageTokens > 0) {
+                $cost = round($overageTokens * 0.00015, 2);
+                if ($cost > 0) {
+                    $user->decrement('wallet_balance', $cost);
+                }
+            }
+        }
     }
 }

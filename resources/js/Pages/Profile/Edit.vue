@@ -82,6 +82,8 @@ const cancelSubscription = () => {
 
 /* ── Wallet ─────────────────────────────────────────────── */
 const walletBalance = computed(() => Number(authUser.value.wallet_balance || 0).toFixed(2));
+const hasWalletBalance = computed(() => Number(authUser.value.wallet_balance || 0) > 0);
+const showExtraUsage = computed(() => currentPlan.value !== 'free' || hasWalletBalance.value);
 
 /* ── Wallet top-up modal ─────────────────────────────────── */
 const showTopupModal  = ref(false);
@@ -282,7 +284,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                         <div v-if="status === 'subscription-updated'"      class="st-banner st-banner-purple">Abonnement opdateret til {{ planLabel(currentPlan) }}.</div>
                         <div v-if="status === 'subscription-cancelled'"    class="st-banner st-banner-green">Dit abonnement er annulleret. Du er nu på Gratis-planen.</div>
                         <div v-if="status === 'subscription-payment-failed'" class="st-banner st-banner-red">Betalingen kunne ikke gennemføres. Din plan er ikke ændret. Tjek at dit kort har dækning og prøv igen.</div>
-                        <div v-if="status === 'wallet-topup-success'" class="st-banner st-banner-green">{{ topupAmount }} DKK er tilføjet til din saldo.</div>
+                        <div v-if="status === 'wallet-topup-success'" class="st-banner st-banner-green">{{ topupAmount }} Kr. er tilføjet til din saldo.</div>
 
                         <!-- ══════════════ GENERELT ══════════════ -->
                         <template v-if="activeSection === 'general'">
@@ -449,7 +451,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
 
                             <div class="st-bill-row" style="margin-bottom:0.875rem">
                                 <div>
-                                    <div class="st-bill-amount">{{ walletBalance }} DKK</div>
+                                    <div class="st-bill-amount">{{ walletBalance }} Kr.</div>
                                     <div class="st-muted">Aktuel saldo</div>
                                 </div>
                                 <button @click="showTopupModal = true" class="st-btn">Køb mere</button>
@@ -576,6 +578,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                                 <button @click="activeSection = 'subscription'" class="st-link">Opgrader plan →</button>
                             </div>
 
+                            <template v-if="showExtraUsage">
                             <div class="st-divider"></div>
 
                             <!-- Extra usage -->
@@ -594,7 +597,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                             <template v-if="extraUsageEnabled">
                                 <!-- Aktuel saldo + køb mere -->
                                 <div class="st-extra-info-row" style="margin-top:1rem">
-                                    <span class="st-usage-name">{{ walletBalance }} DKK</span>
+                                    <span class="st-usage-name">{{ walletBalance }} Kr.</span>
                                     <span class="st-muted">Aktuel saldo</span>
                                 </div>
                                 <button @click="showTopupModal = true" class="st-btn st-btn-outline" style="margin-top:0.875rem">Køb mere</button>
@@ -618,19 +621,20 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                                             <label class="st-label-block">Genopfyld når saldo er under</label>
                                             <div class="wt-custom-wrap" style="max-width:10rem">
                                                 <input v-model.number="autoRefillThreshold" @change="saveExtraUsage()" type="number" min="10" max="1000" class="wt-custom-input" />
-                                                <span class="wt-custom-suffix">DKK</span>
+                                                <span class="wt-custom-suffix">Kr.</span>
                                             </div>
                                         </div>
                                         <div class="st-field-block">
                                             <label class="st-label-block">Genopfyld med</label>
                                             <div class="wt-custom-wrap" style="max-width:10rem">
                                                 <input v-model.number="autoRefillAmount" @change="saveExtraUsage()" type="number" min="10" max="5000" class="wt-custom-input" />
-                                                <span class="wt-custom-suffix">DKK</span>
+                                                <span class="wt-custom-suffix">Kr.</span>
                                             </div>
                                         </div>
                                     </div>
                                 </template>
                             </template>
+                            </template><!-- /showExtraUsage -->
                         </template>
 
                     </div><!-- st-content -->
@@ -659,7 +663,7 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                         v-for="p in topupPresets" :key="p"
                         @click="selectPreset(p)"
                         :class="['wt-preset', topupAmount === p && !topupCustom ? 'wt-preset-active' : '']"
-                    >{{ p }} DKK</button>
+                    >{{ p }} Kr.</button>
                 </div>
 
                 <!-- Custom amount -->
@@ -673,14 +677,14 @@ const submitDelete   = () => deleteForm.delete(route('profile.destroy'));
                             placeholder="fx. 350"
                             class="wt-custom-input"
                         />
-                        <span class="wt-custom-suffix">DKK</span>
+                        <span class="wt-custom-suffix">Kr.</span>
                     </div>
                 </div>
 
                 <!-- Summary -->
                 <div class="wt-summary">
                     <span>Total</span>
-                    <span class="wt-summary-amount">{{ topupAmount }} DKK</span>
+                    <span class="wt-summary-amount">{{ topupAmount }} Kr.</span>
                 </div>
 
                 <!-- Error -->

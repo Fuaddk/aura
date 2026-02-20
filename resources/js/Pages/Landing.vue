@@ -89,11 +89,10 @@ onUnmounted(() => {
             <nav class="lp-nav" :class="{ 'lp-nav-scrolled': scrollY > 60 }">
                 <div class="lp-nav-inner">
                     <img src="/logo.png" alt="Aura" class="lp-nav-logo" />
-                    <!-- Anchor menu — kun synlig når scrolled -->
                     <div class="lp-nav-menu" :class="{ 'lp-nav-menu-visible': scrollY > 60 }">
                         <button @click="scrollTo('funktioner')" class="lp-nav-anchor">Funktioner</button>
+                        <button @click="scrollTo('priser')" class="lp-nav-anchor">Priser</button>
                         <button @click="scrollTo('hvordan')" class="lp-nav-anchor">Sådan virker det</button>
-                        <button @click="scrollTo('priser')" class="lp-nav-anchor">Kom i gang</button>
                     </div>
                     <div class="lp-nav-links">
                         <Link :href="route('login')" class="lp-nav-link">Log ind</Link>
@@ -132,7 +131,6 @@ onUnmounted(() => {
 
                 <p class="lp-hero-trust">Gratis at starte &middot; Ingen kreditkort påkrævet &middot; Cancel anytime</p>
 
-                <!-- Stats row -->
                 <div class="lp-stats">
                     <div v-for="s in stats" :key="s.label" class="lp-stat">
                         <span class="lp-stat-value">{{ s.value }}</span>
@@ -247,26 +245,21 @@ onUnmounted(() => {
                             class="lp-feat-panel"
                             :class="{ 'lp-feat-panel-active': activeFeature === i }"
                         >
-                            <div class="lp-feat-panel-icon" :style="{ background: f.color + '18', borderColor: f.color + '33', color: f.color }">
-                                <!-- Chat icon -->
+                            <div class="lp-feat-panel-icon" :style="{ background: f.color + '22', borderColor: f.color + '44', color: f.color }">
                                 <svg v-if="f.icon === 'chat'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                     <path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97Z" clip-rule="evenodd" />
                                 </svg>
-                                <!-- Tasks icon -->
                                 <svg v-else-if="f.icon === 'tasks'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                     <path fill-rule="evenodd" d="M7.502 6h7.128A3.375 3.375 0 0 1 18 9.375v9.375a3 3 0 0 0 3-3V6.108c0-1.505-1.125-2.811-2.664-2.94a48.972 48.972 0 0 0-.673-.05A3 3 0 0 0 15 1.5h-1.5a3 3 0 0 0-2.663 1.618c-.225.015-.45.032-.673.05C8.662 3.295 7.554 4.542 7.502 6ZM13.5 3A1.5 1.5 0 0 0 12 4.5h4.5A1.5 1.5 0 0 0 15 3h-1.5Z" clip-rule="evenodd" />
                                     <path fill-rule="evenodd" d="M3 9.375C3 8.339 3.84 7.5 4.875 7.5h9.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V9.375Zm9.586 4.594a.75.75 0 0 0-1.172-.938l-2.476 3.096-.908-.907a.75.75 0 0 0-1.06 1.06l1.5 1.5a.75.75 0 0 0 1.116-.062l3-3.75Z" clip-rule="evenodd" />
                                 </svg>
-                                <!-- Inbox icon -->
                                 <svg v-else-if="f.icon === 'inbox'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                     <path fill-rule="evenodd" d="M5.478 5.559A1.5 1.5 0 0 1 6.912 4.5H9A.75.75 0 0 0 9 3H6.912a3 3 0 0 0-2.868 2.118l-2.411 7.838a3 3 0 0 0-.133.882V18a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3v-4.162c0-.299-.045-.596-.133-.882l-2.412-7.838A3 3 0 0 0 17.088 3H15a.75.75 0 0 0 0 1.5h2.088a1.5 1.5 0 0 1 1.434 1.059l2.213 7.191H17.89a3 3 0 0 0-2.684 1.658l-.256.513a1.5 1.5 0 0 1-1.342.829h-3.218a1.5 1.5 0 0 1-1.342-.83l-.256-.512a3 3 0 0 0-2.684-1.658H3.265l2.213-7.191Z" clip-rule="evenodd" />
                                 </svg>
-                                <!-- Calendar icon -->
                                 <svg v-else-if="f.icon === 'calendar'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12.75 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM7.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM8.25 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM9.75 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM10.5 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM12.75 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM14.25 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
                                     <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clip-rule="evenodd" />
                                 </svg>
-                                <!-- Docs icon -->
                                 <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                     <path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625ZM7.5 15a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 7.5 15Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H8.25Z" clip-rule="evenodd" />
                                     <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
@@ -275,9 +268,8 @@ onUnmounted(() => {
                             <h3 class="lp-feat-panel-title">{{ f.title }}</h3>
                             <p class="lp-feat-panel-desc">{{ f.desc }}</p>
 
-                            <!-- Decorative lines -->
                             <div class="lp-feat-lines" aria-hidden="true">
-                                <div class="lp-feat-line" v-for="n in 4" :key="n" :style="{ width: (60 + n * 10) + '%', opacity: 0.04 + n * 0.02, animationDelay: n * 0.15 + 's' }"></div>
+                                <div class="lp-feat-line" v-for="n in 4" :key="n" :style="{ width: (60 + n * 10) + '%', opacity: 0.05 + n * 0.03, animationDelay: n * 0.15 + 's' }"></div>
                             </div>
                         </div>
                     </div>
@@ -286,23 +278,86 @@ onUnmounted(() => {
             </div>
         </section>
 
-        <!-- ═══ CTA BOTTOM ═══ -->
-        <section class="lp-cta-section" id="priser">
-            <div class="lp-cta-bg" aria-hidden="true">
-                <div class="lp-cta-orb-1"></div>
-                <div class="lp-cta-orb-2"></div>
-            </div>
-            <div class="lp-cta-content">
-                <h2 class="lp-cta-title">Klar til at tage det første skridt?</h2>
-                <p class="lp-cta-sub">Aura er her for dig – hele vejen igennem.</p>
-                <div class="lp-cta-actions">
-                    <Link :href="route('register')" class="lp-btn-primary lp-btn-primary-lg">
-                        Opret gratis konto
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clip-rule="evenodd" />
-                        </svg>
-                    </Link>
-                    <Link :href="route('login')" class="lp-btn-ghost-light">Log ind</Link>
+        <!-- ═══ PRICING SECTION ═══ -->
+        <section class="lp-pricing" id="priser">
+            <div class="lp-section-inner">
+
+                <div class="lp-section-label">Prisplaner</div>
+                <h2 class="lp-section-title">Vælg den plan<br><span class="lp-gradient-text">der passer til dig</span></h2>
+
+                <div class="lp-plans">
+
+                    <!-- Gratis -->
+                    <div class="lp-plan">
+                        <div class="lp-plan-header">
+                            <h3 class="lp-plan-name">Gratis</h3>
+                            <div class="lp-plan-price">
+                                <span class="lp-plan-amount">0</span>
+                                <span class="lp-plan-period">kr/md</span>
+                            </div>
+                            <p class="lp-plan-desc">Kom i gang med grundlæggende rådgivning</p>
+                        </div>
+                        <ul class="lp-plan-features">
+                            <li>Grundlæggende opgavestyring</li>
+                            <li>Dokumentopbevaring</li>
+                            <li class="lp-plan-feat-no">Kalenderintegration</li>
+                            <li class="lp-plan-feat-no">E-mail indbakke</li>
+                        </ul>
+                        <Link :href="route('register')" class="lp-plan-cta lp-plan-cta-ghost">
+                            Opret gratis konto
+                        </Link>
+                    </div>
+
+                    <!-- Basis (mest populær) -->
+                    <div class="lp-plan lp-plan-popular">
+                        <div class="lp-plan-popular-badge">Mest populær</div>
+                        <div class="lp-plan-header">
+                            <h3 class="lp-plan-name">Basis</h3>
+                            <div class="lp-plan-price">
+                                <span class="lp-plan-amount">99</span>
+                                <span class="lp-plan-period">kr/md</span>
+                            </div>
+                            <p class="lp-plan-desc">Alt hvad du behøver!</p>
+                        </div>
+                        <ul class="lp-plan-features">
+                            <li>Adgang til Aura-ML-o2</li>
+                            <li>Ubegrænset sager</li>
+                            <li>Avancerede opgaver</li>
+                            <li>Dokumentupload</li>
+                            <li>Kalenderintegration</li>
+                            <li class="lp-plan-feat-no">E-mail indbakke</li>
+                        </ul>
+                        <Link :href="route('register')" class="lp-plan-cta lp-plan-cta-primary">
+                            Kom i gang
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clip-rule="evenodd" />
+                            </svg>
+                        </Link>
+                    </div>
+
+                    <!-- Pro -->
+                    <div class="lp-plan">
+                        <div class="lp-plan-header">
+                            <h3 class="lp-plan-name">Pro</h3>
+                            <div class="lp-plan-price">
+                                <span class="lp-plan-amount">199</span>
+                                <span class="lp-plan-period">kr/md</span>
+                            </div>
+                            <p class="lp-plan-desc">Alt hvad du behøver, og mere til!</p>
+                        </div>
+                        <ul class="lp-plan-features">
+                            <li>Adgang til Aura-ML-o2</li>
+                            <li>Ubegrænset sager</li>
+                            <li>Avancerede opgaver</li>
+                            <li>Dokumentupload</li>
+                            <li>Kalenderintegration</li>
+                            <li>E-mail indbakke</li>
+                        </ul>
+                        <Link :href="route('register')" class="lp-plan-cta lp-plan-cta-ghost">
+                            Vælg Pro
+                        </Link>
+                    </div>
+
                 </div>
             </div>
         </section>
@@ -343,7 +398,6 @@ onUnmounted(() => {
                     <p class="lp-footer-tagline">
                         AI-rådgivning til dig der<br>skal igennem en skilsmisse.
                     </p>
-                    <!-- Social -->
                     <div class="lp-footer-socials">
                         <a href="https://www.instagram.com/hiaura.dk" target="_blank" rel="noopener" class="lp-social-btn" aria-label="Instagram">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -389,14 +443,9 @@ onUnmounted(() => {
                                 support@hiaura.dk
                             </a>
                         </li>
-                        <li>
-                            <span class="lp-footer-link-plain">Aura ApS</span>
-                        </li>
-                        <li>
-                            <span class="lp-footer-link-plain">Danmark</span>
-                        </li>
+                        <li><span class="lp-footer-link-plain">Aura ApS</span></li>
+                        <li><span class="lp-footer-link-plain">Danmark</span></li>
                     </ul>
-                    <!-- Support hours -->
                     <div class="lp-footer-hours">
                         <p class="lp-footer-hours-title">Support</p>
                         <p>Man–Fre: 09:00–17:00</p>
@@ -406,7 +455,6 @@ onUnmounted(() => {
 
             </div>
 
-            <!-- Bottom bar -->
             <div class="lp-footer-bottom">
                 <p class="lp-footer-copy">&copy; {{ new Date().getFullYear() }} Aura ApS. Alle rettigheder forbeholdes.</p>
                 <div class="lp-footer-legal">
@@ -426,9 +474,11 @@ onUnmounted(() => {
 /* ─── Reset / Base ─────────────────────────────────────── */
 .lp-root {
     font-family: 'Figtree', ui-sans-serif, system-ui, sans-serif;
-    color: #111827;
-    background: #fff;
+    color: #fff;
+    background: linear-gradient(145deg, #1a3a5c 0%, #2d2060 35%, #4a1a4a 70%, #3d1030 100%);
+    background-attachment: fixed;
     overflow-x: hidden;
+    min-height: 100vh;
 }
 
 /* ─── Shared gradient text ─────────────────────────────── */
@@ -455,7 +505,7 @@ onUnmounted(() => {
 }
 
 .lp-nav-inner {
-    max-width: 72rem;
+    max-width: 88rem;
     margin: 0 auto;
     padding: 1.125rem 2rem;
     display: flex;
@@ -467,13 +517,13 @@ onUnmounted(() => {
 }
 
 .lp-nav-scrolled .lp-nav-inner {
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(0,0,0,0.07);
+    background: rgba(20, 10, 40, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 1.25rem;
     padding: 0.75rem 1.5rem;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .lp-nav-logo {
@@ -485,7 +535,7 @@ onUnmounted(() => {
 }
 
 .lp-nav-scrolled .lp-nav-logo {
-    filter: none;
+    filter: brightness(0) invert(1) opacity(0.85);
 }
 
 /* Anchor menu */
@@ -510,7 +560,7 @@ onUnmounted(() => {
 .lp-nav-anchor {
     font-size: 0.875rem;
     font-weight: 500;
-    color: rgba(255,255,255,0.75);
+    color: rgba(255,255,255,0.7);
     background: none;
     border: none;
     padding: 0.4rem 0.75rem;
@@ -520,9 +570,7 @@ onUnmounted(() => {
     white-space: nowrap;
 }
 
-.lp-nav-scrolled .lp-nav-anchor { color: #4b5563; }
-.lp-nav-anchor:hover { background: rgba(255,255,255,0.12); color: #fff; }
-.lp-nav-scrolled .lp-nav-anchor:hover { background: rgba(126,117,206,0.08); color: #7E75CE; }
+.lp-nav-anchor:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
 .lp-nav-links {
     display: flex;
@@ -541,9 +589,7 @@ onUnmounted(() => {
     transition: all 0.15s;
 }
 
-.lp-nav-scrolled .lp-nav-link { color: #4b5563; }
 .lp-nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.lp-nav-scrolled .lp-nav-link:hover { color: #7E75CE; background: rgba(126,117,206,0.08); }
 
 .lp-nav-cta {
     font-size: 0.875rem;
@@ -561,7 +607,7 @@ onUnmounted(() => {
 .lp-nav-scrolled .lp-nav-cta {
     background: linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A);
     border-color: transparent;
-    box-shadow: 0 2px 10px rgba(126,117,206,0.3);
+    box-shadow: 0 2px 10px rgba(126,117,206,0.35);
 }
 
 .lp-nav-cta:hover {
@@ -571,14 +617,13 @@ onUnmounted(() => {
 
 .lp-nav-scrolled .lp-nav-cta:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(126,117,206,0.45);
+    box-shadow: 0 4px 14px rgba(126,117,206,0.5);
 }
 
 /* ─── HERO ─────────────────────────────────────────────── */
 .lp-hero {
     position: relative;
     min-height: 100vh;
-    background: linear-gradient(145deg, #1a3a5c 0%, #2d2060 35%, #4a1a4a 70%, #3d1030 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -586,7 +631,6 @@ onUnmounted(() => {
     overflow: hidden;
 }
 
-/* Animated background orbs */
 .lp-hero-bg {
     position: absolute;
     inset: 0;
@@ -641,7 +685,6 @@ onUnmounted(() => {
     66%       { transform: translate(-15px,15px) scale(0.93); }
 }
 
-/* Hero two-column layout */
 .lp-hero {
     display: grid;
     grid-template-columns: 1fr;
@@ -656,7 +699,6 @@ onUnmounted(() => {
     }
 }
 
-/* Hero content */
 .lp-hero-content {
     position: relative;
     z-index: 10;
@@ -717,13 +759,8 @@ onUnmounted(() => {
     max-width: 32rem;
 }
 
-.lp-br-hide {
-    display: none;
-}
-
-@media (min-width: 768px) {
-    .lp-br-hide { display: inline; }
-}
+.lp-br-hide { display: none; }
+@media (min-width: 768px) { .lp-br-hide { display: inline; } }
 
 .lp-hero-actions {
     display: flex;
@@ -760,18 +797,8 @@ onUnmounted(() => {
 }
 
 .lp-btn-primary:hover::before { opacity: 1; }
-
-.lp-btn-primary:hover {
-    box-shadow: 0 6px 28px rgba(126,117,206,0.6);
-    transform: translateY(-2px);
-}
-
-.lp-btn-primary svg {
-    width: 1rem;
-    height: 1rem;
-    transition: transform 0.2s;
-}
-
+.lp-btn-primary:hover { box-shadow: 0 6px 28px rgba(126,117,206,0.6); transform: translateY(-2px); }
+.lp-btn-primary svg { width: 1rem; height: 1rem; transition: transform 0.2s; }
 .lp-btn-primary:hover svg { transform: translateX(3px); }
 
 .lp-btn-ghost {
@@ -801,18 +828,13 @@ onUnmounted(() => {
     margin: 0 0 2.5rem;
 }
 
-/* Stats */
 .lp-stats {
     display: flex;
     gap: 2rem;
     flex-wrap: wrap;
 }
 
-.lp-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-}
+.lp-stat { display: flex; flex-direction: column; gap: 0.2rem; }
 
 .lp-stat-value {
     font-size: 1.5rem;
@@ -900,10 +922,7 @@ onUnmounted(() => {
     flex: 1;
 }
 
-.chat-demo-online {
-    font-size: 0.6875rem;
-    color: rgba(255,255,255,0.38);
-}
+.chat-demo-online { font-size: 0.6875rem; color: rgba(255,255,255,0.38); }
 
 .chat-demo-body {
     flex: 1;
@@ -914,12 +933,7 @@ onUnmounted(() => {
     overflow: hidden;
 }
 
-.chat-demo-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.5rem;
-}
-
+.chat-demo-row { display: flex; align-items: flex-end; gap: 0.5rem; }
 .chat-demo-row-user { flex-direction: row-reverse; }
 
 .chat-demo-avatar {
@@ -988,13 +1002,8 @@ onUnmounted(() => {
     box-shadow: 0 2px 8px rgba(126,117,206,0.4);
 }
 
-.chat-demo-send-btn svg {
-    width: 0.9375rem;
-    height: 0.9375rem;
-    color: #fff;
-}
+.chat-demo-send-btn svg { width: 0.9375rem; height: 0.9375rem; color: #fff; }
 
-/* Appear animations */
 .msg-appear-1 { animation: msg-fade-in 0.45s ease both 0.5s; }
 .msg-appear-2 { animation: msg-fade-in 0.45s ease both 1.4s; }
 .msg-appear-3 { animation: msg-fade-in 0.45s ease both 2.5s; }
@@ -1013,7 +1022,6 @@ onUnmounted(() => {
     to   { opacity: 1; transform: translateX(0) scale(1); }
 }
 
-/* Task items */
 .tasks-created-header {
     display: flex;
     align-items: center;
@@ -1024,12 +1032,7 @@ onUnmounted(() => {
     letter-spacing: 0.03em;
 }
 
-.tasks-created-header svg {
-    width: 0.875rem;
-    height: 0.875rem;
-    color: #4ade80;
-    flex-shrink: 0;
-}
+.tasks-created-header svg { width: 0.875rem; height: 0.875rem; color: #4ade80; flex-shrink: 0; }
 
 .demo-task-card {
     display: flex;
@@ -1042,13 +1045,7 @@ onUnmounted(() => {
     cursor: default;
 }
 
-.demo-task-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 9999px;
-    flex-shrink: 0;
-}
-
+.demo-task-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; flex-shrink: 0; }
 .demo-task-dot-high { background: #f87171; box-shadow: 0 0 5px rgba(248,113,113,0.5); }
 .demo-task-dot-med  { background: #fbbf24; box-shadow: 0 0 5px rgba(251,191,36,0.5); }
 
@@ -1081,37 +1078,12 @@ onUnmounted(() => {
     flex-shrink: 0;
 }
 
-.demo-task-badge-high {
-    background: rgba(248,113,113,0.18);
-    color: #fca5a5;
-    border: 1px solid rgba(248,113,113,0.25);
-}
+.demo-task-badge-high { background: rgba(248,113,113,0.18); color: #fca5a5; border: 1px solid rgba(248,113,113,0.25); }
+.demo-task-badge-med  { background: rgba(251,191,36,0.15); color: #fcd34d; border: 1px solid rgba(251,191,36,0.2); }
 
-.demo-task-badge-med {
-    background: rgba(251,191,36,0.15);
-    color: #fcd34d;
-    border: 1px solid rgba(251,191,36,0.2);
-}
-
-/* ─── FEATURES SECTION ─────────────────────────────────── */
-.lp-features-section {
-    padding: 1.5rem 1.5rem 0.75rem;
-    background: #fff;
-}
-
-.lp-features-section > .lp-section-inner {
-    background:
-        linear-gradient(rgba(248,246,255,0.85), rgba(248,246,255,0.85)) padding-box,
-        linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A) border-box;
-    border: 1.5px solid transparent;
-    border-radius: 2rem;
-    padding: 3rem 2.5rem;
-    box-shadow: 0 4px 24px rgba(126,117,206,0.08);
-    box-sizing: border-box;
-}
-
+/* ─── SHARED SECTION STYLES ─────────────────────────────── */
 .lp-section-inner {
-    max-width: 72rem;
+    max-width: 88rem;
     margin: 0 auto;
 }
 
@@ -1120,17 +1092,35 @@ onUnmounted(() => {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #7E75CE;
+    color: #a78bfa;
     margin-bottom: 0.75rem;
 }
 
 .lp-section-title {
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-weight: 800;
-    color: #111827;
+    color: #fff;
     letter-spacing: -0.03em;
     line-height: 1.2;
     margin: 0 0 3rem;
+}
+
+/* ─── FEATURES SECTION ─────────────────────────────────── */
+.lp-features-section {
+    padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.lp-features-section > .lp-section-inner {
+    background:
+        linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)) padding-box,
+        linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A) border-box;
+    border: 1.5px solid transparent;
+    border-radius: 2rem;
+    padding: 3rem 2.5rem;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    box-sizing: border-box;
 }
 
 /* Features layout */
@@ -1148,7 +1138,6 @@ onUnmounted(() => {
     }
 }
 
-/* Feature list */
 .lp-feat-list {
     display: flex;
     flex-direction: column;
@@ -1161,7 +1150,7 @@ onUnmounted(() => {
     gap: 1rem;
     padding: 1rem 1.125rem;
     background: transparent;
-    border: 1.5px solid transparent;
+    border: 1.5px solid rgba(255,255,255,0.07);
     border-radius: 1.125rem;
     cursor: pointer;
     text-align: left;
@@ -1171,14 +1160,14 @@ onUnmounted(() => {
 }
 
 .lp-feat-item:hover {
-    background: rgba(126,117,206,0.04);
-    border-color: rgba(126,117,206,0.12);
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.15);
 }
 
 .lp-feat-item-active {
-    background: #fff;
-    border-color: rgba(126,117,206,0.2);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
 }
 
 .lp-feat-dot {
@@ -1194,23 +1183,20 @@ onUnmounted(() => {
     box-shadow: 0 0 8px var(--feat-color, #7E75CE);
 }
 
-.lp-feat-text {
-    flex: 1;
-    min-width: 0;
-}
+.lp-feat-text { flex: 1; min-width: 0; }
 
 .lp-feat-text strong {
     display: block;
     font-size: 0.9375rem;
     font-weight: 700;
-    color: #111827;
+    color: #fff;
     margin-bottom: 0.25rem;
 }
 
 .lp-feat-text span {
     display: block;
     font-size: 0.875rem;
-    color: #6b7280;
+    color: rgba(255,255,255,0.6);
     line-height: 1.6;
     animation: feat-desc-in 0.25s ease both;
 }
@@ -1226,7 +1212,7 @@ onUnmounted(() => {
     left: 0;
     right: 0;
     height: 2px;
-    background: rgba(0,0,0,0.04);
+    background: rgba(255,255,255,0.06);
     overflow: hidden;
 }
 
@@ -1241,7 +1227,6 @@ onUnmounted(() => {
     to   { transform: scaleX(1); }
 }
 
-/* Feature visual panel */
 .lp-feat-visual {
     position: relative;
     min-height: 16rem;
@@ -1250,16 +1235,17 @@ onUnmounted(() => {
 .lp-feat-panel {
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,0.75);
-    border: 1px solid rgba(126,117,206,0.15);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 1.5rem;
     padding: 2rem;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
     opacity: 0;
     transform: scale(0.97) translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
     pointer-events: none;
     overflow: hidden;
+    backdrop-filter: blur(8px);
 }
 
 .lp-feat-panel-active {
@@ -1277,35 +1263,25 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     margin-bottom: 1.25rem;
-    transition: box-shadow 0.3s;
 }
 
-.lp-feat-panel-active .lp-feat-panel-icon {
-    box-shadow: 0 0 0 4px currentColor;
-    box-shadow: 0 4px 20px rgba(126,117,206,0.2);
-}
-
-.lp-feat-panel-icon svg {
-    width: 1.625rem;
-    height: 1.625rem;
-}
+.lp-feat-panel-icon svg { width: 1.625rem; height: 1.625rem; }
 
 .lp-feat-panel-title {
     font-size: 1.25rem;
     font-weight: 800;
-    color: #111827;
+    color: #fff;
     letter-spacing: -0.02em;
     margin: 0 0 0.625rem;
 }
 
 .lp-feat-panel-desc {
     font-size: 0.9375rem;
-    color: #6b7280;
+    color: rgba(255,255,255,0.62);
     line-height: 1.7;
     margin: 0;
 }
 
-/* Decorative shimmer lines */
 .lp-feat-lines {
     position: absolute;
     bottom: 1.5rem;
@@ -1318,30 +1294,235 @@ onUnmounted(() => {
 
 .lp-feat-line {
     height: 0.375rem;
-    background: linear-gradient(90deg, #e5e7eb, transparent);
+    background: linear-gradient(90deg, rgba(255,255,255,0.15), transparent);
     border-radius: 9999px;
     animation: shimmer-line 2s ease-in-out infinite alternate;
 }
 
 @keyframes shimmer-line {
-    from { opacity: 0.04; }
-    to   { opacity: 0.14; }
+    from { opacity: 0.05; }
+    to   { opacity: 0.18; }
+}
+
+/* ─── PRICING SECTION ──────────────────────────────────── */
+.lp-pricing {
+    padding: 0.25rem 0.5rem;
+}
+
+.lp-pricing > .lp-section-inner {
+    background:
+        linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)) padding-box,
+        linear-gradient(135deg, #7E75CE, #5BC4E8, #D9609A) border-box;
+    border: 1.5px solid transparent;
+    border-radius: 2rem;
+    padding: 3rem 2.5rem;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    box-sizing: border-box;
+}
+
+.lp-plans {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .lp-plans {
+        grid-template-columns: repeat(3, 1fr);
+        align-items: stretch;
+    }
+}
+
+.lp-plan {
+    position: relative;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 1.75rem;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.lp-plan:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.2);
+}
+
+.lp-plan-popular {
+    background:
+        linear-gradient(rgba(126,117,206,0.18), rgba(126,117,206,0.18)) padding-box,
+        linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A) border-box;
+    border: 2px solid transparent;
+    box-shadow: 0 8px 32px rgba(126,117,206,0.25);
+}
+
+.lp-plan-popular-badge {
+    position: absolute;
+    top: -0.8125rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.3rem 1rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 14px rgba(126,117,206,0.5);
+}
+
+.lp-plan-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lp-plan-name {
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.lp-plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+}
+
+.lp-plan-amount {
+    font-size: 2.75rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+.lp-plan-period {
+    font-size: 0.875rem;
+    color: rgba(255,255,255,0.45);
+    font-weight: 500;
+}
+
+.lp-plan-desc {
+    font-size: 0.875rem;
+    color: rgba(255,255,255,0.5);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.lp-plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    flex: 1;
+}
+
+.lp-plan-features li {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 0.875rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.lp-plan-features li::before {
+    content: '✓';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    background: rgba(91,196,232,0.15);
+    border: 1px solid rgba(91,196,232,0.35);
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 900;
+    color: #5BC4E8;
+    flex-shrink: 0;
+}
+
+.lp-plan-feat-no {
+    color: rgba(255,255,255,0.28) !important;
+}
+
+.lp-plan-feat-no::before {
+    content: '–' !important;
+    background: rgba(255,255,255,0.05) !important;
+    border-color: rgba(255,255,255,0.08) !important;
+    color: rgba(255,255,255,0.22) !important;
+    font-size: 0.75rem !important;
+}
+
+.lp-plan-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.9375rem 1.5rem;
+    border-radius: 0.875rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+}
+
+.lp-plan-cta svg { width: 1rem; height: 1rem; transition: transform 0.2s; }
+.lp-plan-cta:hover svg { transform: translateX(3px); }
+
+.lp-plan-cta-primary {
+    background: linear-gradient(135deg, #5BC4E8 0%, #7E75CE 50%, #D9609A 100%);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(126,117,206,0.45);
+}
+
+.lp-plan-cta-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(126,117,206,0.65);
+}
+
+.lp-plan-cta-ghost {
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.8);
+    border: 1.5px solid rgba(255,255,255,0.15) !important;
+}
+
+.lp-plan-cta-ghost:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.28) !important;
+    color: #fff;
 }
 
 /* ─── HOW IT WORKS ─────────────────────────────────────── */
 .lp-how {
-    padding: 0.75rem 1.5rem 1.5rem;
-    background: #fff;
+    padding: 0.25rem 0.5rem 0.5rem;
 }
 
 .lp-how > .lp-section-inner {
     background:
-        linear-gradient(rgba(248,246,255,0.85), rgba(248,246,255,0.85)) padding-box,
+        linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)) padding-box,
         linear-gradient(135deg, #D9609A, #7E75CE, #5BC4E8) border-box;
     border: 1.5px solid transparent;
     border-radius: 2rem;
     padding: 3rem 2.5rem;
-    box-shadow: 0 4px 24px rgba(217,96,154,0.08);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
     box-sizing: border-box;
 }
 
@@ -1360,16 +1541,16 @@ onUnmounted(() => {
 
 .lp-step {
     position: relative;
-    background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(126,117,206,0.15);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 1.5rem;
     padding: 2rem;
     transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
 }
 
 .lp-step:hover {
-    box-shadow: 0 12px 36px rgba(126,117,206,0.12);
-    border-color: rgba(126,117,206,0.3);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.25);
+    border-color: rgba(255,255,255,0.2);
     transform: translateY(-4px);
 }
 
@@ -1385,155 +1566,33 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 14px rgba(126,117,206,0.35);
+    box-shadow: 0 4px 14px rgba(126,117,206,0.4);
 }
 
 .lp-step h3 {
     font-size: 1.0625rem;
     font-weight: 700;
-    color: #111827;
+    color: #fff;
     margin: 0 0 0.5rem;
     letter-spacing: -0.01em;
 }
 
 .lp-step p {
     font-size: 0.9375rem;
-    color: #6b7280;
+    color: rgba(255,255,255,0.58);
     line-height: 1.65;
     margin: 0;
 }
 
-/* ─── CTA BOTTOM ───────────────────────────────────────── */
-.lp-cta-section {
-    position: relative;
-    padding: 1.5rem;
-    background: #fff;
-    overflow: hidden;
-    text-align: center;
-}
-
-.lp-cta-section > .lp-cta-bg,
-.lp-cta-section > .lp-cta-content {
-    border-radius: 2rem;
-    overflow: hidden;
-}
-
-.lp-cta-section::before {
-    content: '';
-    position: absolute;
-    inset: 1.5rem;
-    background: linear-gradient(145deg, #1a3a5c 0%, #2d2060 40%, #4a1a4a 75%, #3d1030 100%);
-    border-radius: 2rem;
-    z-index: 0;
-}
-
-.lp-cta-bg {
-    position: absolute;
-    inset: 1.5rem;
-    border-radius: 2rem;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.lp-cta-content {
-    position: relative;
-    z-index: 2;
-    padding: 5rem 2rem;
-}
-
-.lp-cta-bg {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
-.lp-cta-orb-1 {
-    position: absolute;
-    width: 28rem;
-    height: 28rem;
-    border-radius: 9999px;
-    background: rgba(91,196,232,0.15);
-    filter: blur(70px);
-    top: -8rem;
-    right: -4rem;
-    animation: orb-drift 12s ease-in-out infinite;
-}
-
-.lp-cta-orb-2 {
-    position: absolute;
-    width: 22rem;
-    height: 22rem;
-    border-radius: 9999px;
-    background: rgba(217,96,154,0.12);
-    filter: blur(70px);
-    bottom: -6rem;
-    left: -4rem;
-    animation: orb-drift 15s ease-in-out infinite reverse;
-}
-
-.lp-cta-content {
-    position: relative;
-    z-index: 10;
-    max-width: 40rem;
-    margin: 0 auto;
-}
-
-.lp-cta-title {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
-    font-weight: 800;
-    color: #fff;
-    letter-spacing: -0.03em;
-    margin: 0 0 0.75rem;
-}
-
-.lp-cta-sub {
-    font-size: 1.0625rem;
-    color: rgba(255,255,255,0.55);
-    margin: 0 0 2.25rem;
-}
-
-.lp-cta-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.lp-btn-primary-lg {
-    padding: 1.0625rem 2rem;
-    font-size: 1rem;
-    border-radius: 1rem;
-}
-
-.lp-btn-ghost-light {
-    display: inline-flex;
-    align-items: center;
-    padding: 1.0625rem 1.75rem;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.8);
-    font-size: 1rem;
-    font-weight: 500;
-    border: 1.5px solid rgba(255,255,255,0.2);
-    border-radius: 1rem;
-    text-decoration: none;
-    transition: all 0.15s ease;
-    backdrop-filter: blur(4px);
-}
-
-.lp-btn-ghost-light:hover {
-    background: rgba(255,255,255,0.14);
-    border-color: rgba(255,255,255,0.35);
-    color: #fff;
-}
-
 /* ─── FOOTER ───────────────────────────────────────────── */
 .lp-footer {
-    background: #0a0f1e;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    background: rgba(5, 3, 15, 0.85);
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin-top: 0.5rem;
 }
 
 .lp-footer-inner {
-    max-width: 72rem;
+    max-width: 88rem;
     margin: 0 auto;
     padding: 4rem 2rem 3rem;
     display: grid;
@@ -1549,7 +1608,6 @@ onUnmounted(() => {
     .lp-footer-inner { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; }
 }
 
-/* Brand column */
 .lp-footer-brand {
     display: flex;
     flex-direction: column;
@@ -1569,7 +1627,6 @@ onUnmounted(() => {
     margin: 0;
 }
 
-/* Social buttons */
 .lp-footer-socials {
     display: flex;
     gap: 0.625rem;
@@ -1597,12 +1654,8 @@ onUnmounted(() => {
     transform: translateY(-2px);
 }
 
-.lp-social-btn svg {
-    width: 1rem;
-    height: 1rem;
-}
+.lp-social-btn svg { width: 1rem; height: 1rem; }
 
-/* Nav columns */
 .lp-footer-col {
     display: flex;
     flex-direction: column;
@@ -1641,7 +1694,6 @@ onUnmounted(() => {
     color: rgba(255,255,255,0.35);
 }
 
-/* Support hours */
 .lp-footer-hours {
     margin-top: 0.5rem;
     padding: 0.75rem 1rem;
@@ -1665,9 +1717,8 @@ onUnmounted(() => {
     margin: 0.15rem 0;
 }
 
-/* Bottom bar */
 .lp-footer-bottom {
-    max-width: 72rem;
+    max-width: 88rem;
     margin: 0 auto;
     padding: 1.25rem 2rem;
     border-top: 1px solid rgba(255,255,255,0.06);

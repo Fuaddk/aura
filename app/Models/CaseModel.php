@@ -28,6 +28,7 @@ class CaseModel extends Model
         'has_shared_debt',
         'complexity_score',
         'ai_context',
+        'current_phase',
     ];
 
     protected $casts = [

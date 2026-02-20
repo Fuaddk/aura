@@ -104,6 +104,23 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/knowledge/document', [AdminController::class, 'uploadKnowledgeDocument'])->name('knowledge.document');
     Route::delete('/knowledge/source', [AdminController::class, 'deleteKnowledgeSource'])->name('knowledge.source.destroy');
 
+    // Personality RAG
+    Route::post('/knowledge/personality', [AdminController::class, 'uploadPersonalityDocument'])->name('knowledge.personality.upload');
+    Route::delete('/knowledge/personality/source', [AdminController::class, 'deletePersonalitySource'])->name('knowledge.personality.destroy');
+
+    // Phase RAG
+    Route::post('/knowledge/phase', [AdminController::class, 'uploadPhaseDocument'])->name('knowledge.phase.upload');
+    Route::delete('/knowledge/phase/source', [AdminController::class, 'deletePhaseSource'])->name('knowledge.phase.destroy');
+
+    // Task RAG
+    Route::post('/knowledge/task-rag', [AdminController::class, 'uploadTaskDocument'])->name('knowledge.task-rag.upload');
+    Route::delete('/knowledge/task-rag/source', [AdminController::class, 'deleteTaskRagSource'])->name('knowledge.task-rag.destroy');
+
+    // User memories
+    Route::get('/users/{user}/memories', [AdminController::class, 'listUserMemories'])->name('users.memories');
+    Route::delete('/memories/{memory}', [AdminController::class, 'deleteUserMemory'])->name('memories.destroy');
+    Route::delete('/users/{user}/memories', [AdminController::class, 'deleteAllUserMemories'])->name('users.memories.destroy-all');
+
     // API-indstillinger
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');

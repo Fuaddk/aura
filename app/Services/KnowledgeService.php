@@ -320,6 +320,91 @@ class KnowledgeService
     }
 
     /**
+     * Retrieve chunks scoped to a specific RAG type, optionally filtered by a tag column.
+     */
+    public function retrieveByRagType(
+        string $query,
+        string $ragType,
+        int $topK = 5,
+        float $minScore = 0.3,
+        ?string $filterTag = null,
+        string $filterColumn = 'phase_tag'
+    ): array {
+        $queryEmbedding = $this->createEmbedding($query);
+        if (!$queryEmbedding) {
+            return [];
+        }
+
+        $q = KnowledgeChunk::whereNotNull('embedding')->where('rag_type', $ragType);
+        if ($filterTag !== null) {
+            $q->where($filterColumn, $filterTag);
+        }
+        $chunks = $q->get();
+
+        $scored = [];
+        foreach ($chunks as $chunk) {
+            $embedding = $chunk->embedding;
+            if (!is_array($embedding) || empty($embedding)) continue;
+
+            $score = $this->cosineSimilarity($queryEmbedding, $embedding);
+            if ($score >= $minScore) {
+                $scored[] = ['chunk' => $chunk, 'score' => $score];
+            }
+        }
+
+        usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
+        return array_slice($scored, 0, $topK);
+    }
+
+    /**
+     * Build personality context string for prompt injection.
+     */
+    public function buildPersonalityContext(string $query = 'Aura personlighed kommunikationsstil tone værdier'): string
+    {
+        $results = $this->retrieveByRagType($query, 'personality', topK: 3, minScore: 0.2);
+        if (empty($results)) return '';
+
+        $ctx = "─── AURAS PERSONLIGHED OG KOMMUNIKATIONSSTIL ───\n";
+        foreach ($results as $r) {
+            $ctx .= $r['chunk']->content . "\n\n";
+        }
+        return trim($ctx);
+    }
+
+    /**
+     * Build phase-specific context string for prompt injection.
+     */
+    public function buildPhaseContext(string $phase, string $query): string
+    {
+        $results = $this->retrieveByRagType($query, 'phase', topK: 3, minScore: 0.25,
+            filterTag: $phase, filterColumn: 'phase_tag');
+        if (empty($results)) return '';
+
+        $phaseLabel = ucfirst($phase);
+        $ctx = "─── FASE-SPECIFIK VEJLEDNING ({$phaseLabel}) ───\n";
+        foreach ($results as $r) {
+            $ctx .= $r['chunk']->content . "\n\n";
+        }
+        return trim($ctx);
+    }
+
+    /**
+     * Build task-type-specific context string for prompt injection.
+     */
+    public function buildTaskRagContext(string $taskType, string $query): string
+    {
+        $results = $this->retrieveByRagType($query, 'task', topK: 3, minScore: 0.25,
+            filterTag: $taskType, filterColumn: 'task_type_tag');
+        if (empty($results)) return '';
+
+        $ctx = "─── OPGAVE-SPECIFIK VIDEN ({$taskType}) ───\n";
+        foreach ($results as $r) {
+            $ctx .= $r['chunk']->content . "\n\n";
+        }
+        return trim($ctx);
+    }
+
+    /**
      * Process a single source: scrape, chunk, embed, and store.
      */
     public function processSource(array $source, callable $onProgress = null): int

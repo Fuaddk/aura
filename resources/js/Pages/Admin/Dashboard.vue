@@ -8,6 +8,11 @@ const props = defineProps({
     users:              Object,
     knowledgeSources:   { type: Array, default: () => [] },
     predefinedSources:  { type: Array, default: () => [] },
+    personalitySources: { type: Array, default: () => [] },
+    phaseSources:       { type: Array, default: () => [] },
+    taskRagSources:     { type: Array, default: () => [] },
+    memoryStats:        { type: Array, default: () => [] },
+    userMemories:       { type: Array, default: () => [] },
     viewUser:           { type: Object, default: null },
     userCases:          { type: Array, default: () => [] },
     appSettings:        { type: Object, default: () => ({}) },
@@ -84,6 +89,10 @@ const sendNotification = () => {
 };
 
 /* ── Knowledge base ─────────────────────────────────────── */
+const knowledgeSubTab = ref('knowledge');
+const phases = ['chok', 'separation', 'juridisk', 'bodeling', 'efterskilsmisse'];
+const taskTypes = ['samvaer', 'bolig', 'oekonomi', 'juridisk', 'kommune', 'dokument', 'forsikring', 'personlig'];
+
 const indexingSource = ref(null);
 
 const indexPredefined = (src) => {
@@ -134,6 +143,66 @@ const handleFileInput = (e) => { docFile.value = e.target.files[0] || null; };
 const deleteSource = (sourceUrl) => {
     if (!confirm('Slet alle chunks fra denne kilde?')) return;
     router.delete(route('admin.knowledge.source.destroy'), { data: { source_url: sourceUrl }, preserveScroll: true });
+};
+
+// Personality RAG
+const pFile = ref(null); const pTitle = ref(''); const uploadingP = ref(false);
+const uploadPersonality = () => {
+    if (!pFile.value || !pTitle.value) return;
+    uploadingP.value = true;
+    const form = new FormData();
+    form.append('file', pFile.value); form.append('title', pTitle.value);
+    router.post(route('admin.knowledge.personality.upload'), form, {
+        preserveScroll: true,
+        onSuccess: () => { pFile.value = null; pTitle.value = ''; },
+        onFinish:  () => { uploadingP.value = false; },
+    });
+};
+const deletePersonalitySource = (url) => {
+    if (!confirm('Slet denne kilde?')) return;
+    router.delete(route('admin.knowledge.personality.destroy'), { data: { source_url: url }, preserveScroll: true });
+};
+
+// Phase RAG
+const phFile = ref(null); const phTitle = ref(''); const phPhase = ref('chok'); const uploadingPh = ref(false);
+const uploadPhase = () => {
+    if (!phFile.value || !phTitle.value) return;
+    uploadingPh.value = true;
+    const form = new FormData();
+    form.append('file', phFile.value); form.append('title', phTitle.value); form.append('phase_tag', phPhase.value);
+    router.post(route('admin.knowledge.phase.upload'), form, {
+        preserveScroll: true,
+        onSuccess: () => { phFile.value = null; phTitle.value = ''; },
+        onFinish:  () => { uploadingPh.value = false; },
+    });
+};
+const deletePhaseSource = (url) => {
+    if (!confirm('Slet denne kilde?')) return;
+    router.delete(route('admin.knowledge.phase.destroy'), { data: { source_url: url }, preserveScroll: true });
+};
+
+// Task RAG
+const tFile = ref(null); const tTitle = ref(''); const tType = ref('samvaer'); const uploadingT = ref(false);
+const uploadTask = () => {
+    if (!tFile.value || !tTitle.value) return;
+    uploadingT.value = true;
+    const form = new FormData();
+    form.append('file', tFile.value); form.append('title', tTitle.value); form.append('task_type_tag', tType.value);
+    router.post(route('admin.knowledge.task-rag.upload'), form, {
+        preserveScroll: true,
+        onSuccess: () => { tFile.value = null; tTitle.value = ''; },
+        onFinish:  () => { uploadingT.value = false; },
+    });
+};
+const deleteTaskSource = (url) => {
+    if (!confirm('Slet denne kilde?')) return;
+    router.delete(route('admin.knowledge.task-rag.destroy'), { data: { source_url: url }, preserveScroll: true });
+};
+
+// Memories
+const deleteAllMemories = (userId) => {
+    if (!confirm('Slet ALLE hukommelser for denne bruger?')) return;
+    router.delete(route('admin.users.memories.destroy-all', userId), { preserveScroll: true });
 };
 
 /* ── User conversations ─────────────────────────────────── */
@@ -647,106 +716,182 @@ const nav = [
             <section v-if="activeTab === 'knowledge'">
                 <h2 class="adm-section-title">Vidensbase (RAG)</h2>
 
-                <!-- Predefined sources -->
-                <h3 class="adm-form-heading" style="margin-bottom:0.75rem">Foruddefinerede kilder</h3>
-                <div class="adm-table-wrap" style="margin-bottom:2rem">
-                    <table class="adm-table">
-                        <thead>
-                            <tr><th>Titel</th><th>Kategori</th><th>Status</th><th></th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="src in predefinedSources" :key="src.url">
-                                <td>
-                                    <a :href="src.url" target="_blank" class="adm-link adm-user-name">{{ src.title }}</a>
-                                </td>
-                                <td><span class="adm-badge-email">{{ src.category }}</span></td>
-                                <td>
-                                    <span v-if="src.indexed" class="adm-set-badge" style="font-size:0.75rem;padding:0.2rem 0.5rem">✓ Indekseret</span>
-                                    <span v-else style="font-size:0.8125rem;color:#9ca3af">Ikke indekseret</span>
-                                </td>
-                                <td>
-                                    <button @click="indexPredefined(src)" :disabled="indexingSource === src.url || !!indexingSource" class="adm-index-btn">
-                                        {{ indexingSource === src.url ? 'Indekserer…' : src.indexed ? 'Genindekser' : 'Indekser' }}
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Sub-tab nav -->
+                <div class="adm-sub-nav" style="margin-bottom:1.5rem">
+                    <button v-for="t in ['knowledge','personality','phase','task','memory']" :key="t"
+                        :class="['adm-sub-nav-btn', knowledgeSubTab === t ? 'adm-sub-nav-btn-active' : '']"
+                        @click="knowledgeSubTab = t">
+                        {{ { knowledge:'Viden', personality:'Personlighed', phase:'Faser', task:'Opgavetyper', memory:'Hukommelse' }[t] }}
+                    </button>
                 </div>
 
-                <!-- Indexed sources list -->
-                <h3 class="adm-form-heading" style="margin-bottom:0.75rem">Indekserede kilder i databasen</h3>
-                <div class="adm-table-wrap" style="margin-bottom:2rem">
-                    <table class="adm-table">
-                        <thead>
-                            <tr><th>Titel</th><th>Kilde / URL</th><th>Kategori</th><th>Chunks</th><th>Opdateret</th><th></th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="knowledgeSources.length === 0">
-                                <td colspan="6" style="text-align:center;color:#9ca3af;padding:2rem">Ingen kilder i vidensbasen endnu</td>
-                            </tr>
-                            <tr v-for="src in knowledgeSources" :key="src.source_url">
-                                <td class="adm-user-name">{{ src.source_title }}</td>
-                                <td><a :href="src.source_url.startsWith('upload:') ? '#' : src.source_url" target="_blank" class="adm-link" :title="src.source_url">{{ src.source_url.length > 50 ? src.source_url.slice(0,50)+'…' : src.source_url }}</a></td>
-                                <td><span class="adm-badge-email">{{ src.category }}</span></td>
-                                <td class="adm-ai-usage">{{ src.chunks }}</td>
-                                <td class="adm-date">{{ formatDate(src.scraped_at) }}</td>
-                                <td>
-                                    <button @click="deleteSource(src.source_url)" class="adm-delete-btn" title="Slet kilde">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Add forms side by side -->
-                <div class="adm-knowledge-forms">
-                    <!-- Add URL -->
-                    <div class="adm-form-card">
-                        <h3 class="adm-form-heading">Tilføj URL</h3>
-                        <div class="adm-field">
-                            <label class="adm-label">URL</label>
-                            <input v-model="kUrl" type="url" class="adm-input" placeholder="https://www.borger.dk/..." />
-                        </div>
-                        <div class="adm-field">
-                            <label class="adm-label">Titel</label>
-                            <input v-model="kTitle" class="adm-input" placeholder="Fx: Skilsmisse på borger.dk" />
-                        </div>
-                        <div class="adm-field">
-                            <label class="adm-label">Kategori</label>
-                            <select v-model="kCategory" class="adm-input">
-                                <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
-                            </select>
-                        </div>
-                        <button @click="addUrl" :disabled="addingUrl || !kUrl || !kTitle" class="adm-send-btn">
-                            {{ addingUrl ? 'Scraper og indekserer…' : 'Tilføj URL' }}
-                        </button>
-                        <p class="adm-hint">Siden hentes, opdeles i chunks og indekseres med embeddings. Dette kan tage 10–30 sekunder.</p>
+                <!-- ── Sub-tab: Viden (existing) ── -->
+                <div v-if="knowledgeSubTab === 'knowledge'">
+                    <h3 class="adm-form-heading" style="margin-bottom:0.75rem">Foruddefinerede kilder</h3>
+                    <div class="adm-table-wrap" style="margin-bottom:2rem">
+                        <table class="adm-table">
+                            <thead><tr><th>Titel</th><th>Kategori</th><th>Status</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-for="src in predefinedSources" :key="src.url">
+                                    <td><a :href="src.url" target="_blank" class="adm-link adm-user-name">{{ src.title }}</a></td>
+                                    <td><span class="adm-badge-email">{{ src.category }}</span></td>
+                                    <td>
+                                        <span v-if="src.indexed" class="adm-set-badge" style="font-size:0.75rem;padding:0.2rem 0.5rem">✓ Indekseret</span>
+                                        <span v-else style="font-size:0.8125rem;color:#9ca3af">Ikke indekseret</span>
+                                    </td>
+                                    <td>
+                                        <button @click="indexPredefined(src)" :disabled="indexingSource === src.url || !!indexingSource" class="adm-index-btn">
+                                            {{ indexingSource === src.url ? 'Indekserer…' : src.indexed ? 'Genindekser' : 'Indekser' }}
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
 
-                    <!-- Upload document -->
-                    <div class="adm-form-card">
-                        <h3 class="adm-form-heading">Upload dokument</h3>
-                        <div class="adm-field">
-                            <label class="adm-label">Fil <span style="color:#9ca3af;font-weight:400">(PDF, Word eller TXT · maks 30 MB)</span></label>
-                            <input type="file" accept=".txt,.pdf,.docx,.doc" @change="handleFileInput" class="adm-input adm-file-input" />
+                    <h3 class="adm-form-heading" style="margin-bottom:0.75rem">Indekserede kilder i databasen</h3>
+                    <div class="adm-table-wrap" style="margin-bottom:2rem">
+                        <table class="adm-table">
+                            <thead><tr><th>Titel</th><th>Kilde / URL</th><th>Kategori</th><th>Chunks</th><th>Opdateret</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-if="knowledgeSources.length === 0">
+                                    <td colspan="6" style="text-align:center;color:#9ca3af;padding:2rem">Ingen kilder i vidensbasen endnu</td>
+                                </tr>
+                                <tr v-for="src in knowledgeSources" :key="src.source_url">
+                                    <td class="adm-user-name">{{ src.source_title }}</td>
+                                    <td><a :href="src.source_url.startsWith('upload:') ? '#' : src.source_url" target="_blank" class="adm-link" :title="src.source_url">{{ src.source_url.length > 50 ? src.source_url.slice(0,50)+'…' : src.source_url }}</a></td>
+                                    <td><span class="adm-badge-email">{{ src.category }}</span></td>
+                                    <td class="adm-ai-usage">{{ src.chunks }}</td>
+                                    <td class="adm-date">{{ formatDate(src.scraped_at) }}</td>
+                                    <td><button @click="deleteSource(src.source_url)" class="adm-delete-btn" title="Slet kilde">× Slet</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="adm-knowledge-forms">
+                        <div class="adm-form-card">
+                            <h3 class="adm-form-heading">Tilføj URL</h3>
+                            <div class="adm-field"><label class="adm-label">URL</label><input v-model="kUrl" type="url" class="adm-input" placeholder="https://www.borger.dk/..." /></div>
+                            <div class="adm-field"><label class="adm-label">Titel</label><input v-model="kTitle" class="adm-input" placeholder="Fx: Skilsmisse på borger.dk" /></div>
+                            <div class="adm-field"><label class="adm-label">Kategori</label><select v-model="kCategory" class="adm-input"><option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option></select></div>
+                            <button @click="addUrl" :disabled="addingUrl || !kUrl || !kTitle" class="adm-send-btn">{{ addingUrl ? 'Scraper og indekserer…' : 'Tilføj URL' }}</button>
+                            <p class="adm-hint">Siden hentes, opdeles i chunks og indekseres med embeddings. Dette kan tage 10–30 sekunder.</p>
                         </div>
-                        <div class="adm-field">
-                            <label class="adm-label">Titel</label>
-                            <input v-model="docTitle" class="adm-input" placeholder="Fx: Forældreansvarslovens vejledning" />
+                        <div class="adm-form-card">
+                            <h3 class="adm-form-heading">Upload dokument</h3>
+                            <div class="adm-field"><label class="adm-label">Fil <span style="color:#9ca3af;font-weight:400">(PDF, Word eller TXT · maks 30 MB)</span></label><input type="file" accept=".txt,.pdf,.docx,.doc" @change="handleFileInput" class="adm-input adm-file-input" /></div>
+                            <div class="adm-field"><label class="adm-label">Titel</label><input v-model="docTitle" class="adm-input" placeholder="Fx: Forældreansvarslovens vejledning" /></div>
+                            <div class="adm-field"><label class="adm-label">Kategori</label><select v-model="docCategory" class="adm-input"><option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option></select></div>
+                            <button @click="uploadDoc" :disabled="uploadingDoc || !docFile || !docTitle" class="adm-send-btn">{{ uploadingDoc ? 'Uploader og indekserer…' : 'Upload dokument' }}</button>
+                            <p class="adm-hint">Teksten udtrækkes automatisk, opdeles i chunks og indekseres med AI-embeddings.</p>
                         </div>
-                        <div class="adm-field">
-                            <label class="adm-label">Kategori</label>
-                            <select v-model="docCategory" class="adm-input">
-                                <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
+                    </div>
+                </div>
+
+                <!-- ── Sub-tab: Personlighed ── -->
+                <div v-if="knowledgeSubTab === 'personality'">
+                    <p class="adm-hint" style="margin-bottom:1.5rem">Upload dokumenter der definerer Auras tone, værdier og kommunikationsstil. Disse injiceres øverst i system-prompten.</p>
+                    <div class="adm-form-card" style="margin-bottom:2rem;max-width:36rem">
+                        <h3 class="adm-form-heading">Upload personlighedsdokument</h3>
+                        <div class="adm-field"><label class="adm-label">Fil (PDF, Word eller TXT)</label><input type="file" accept=".txt,.pdf,.docx,.doc" @change="(e) => { pFile = e.target.files[0] || null }" class="adm-input adm-file-input" /></div>
+                        <div class="adm-field"><label class="adm-label">Titel</label><input v-model="pTitle" class="adm-input" placeholder="Fx: Auras kommunikationsprincipper" /></div>
+                        <button @click="uploadPersonality" :disabled="uploadingP || !pFile || !pTitle" class="adm-send-btn">{{ uploadingP ? 'Uploader…' : 'Upload' }}</button>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Titel</th><th>Chunks</th><th>Opdateret</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-if="!personalitySources.length"><td colspan="4" style="text-align:center;color:#9ca3af;padding:2rem">Ingen personlighedsdokumenter endnu</td></tr>
+                                <tr v-for="src in personalitySources" :key="src.source_url">
+                                    <td class="adm-user-name">{{ src.source_title }}</td>
+                                    <td class="adm-ai-usage">{{ src.chunks }}</td>
+                                    <td class="adm-date">{{ formatDate(src.scraped_at) }}</td>
+                                    <td><button @click="deletePersonalitySource(src.source_url)" class="adm-delete-btn">× Slet</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── Sub-tab: Faser ── -->
+                <div v-if="knowledgeSubTab === 'phase'">
+                    <p class="adm-hint" style="margin-bottom:1.5rem">Upload fase-specifik vejledning. Fases detekteres automatisk af AI og tilsvarende chunks injiceres i prompten.</p>
+                    <div class="adm-form-card" style="margin-bottom:2rem;max-width:36rem">
+                        <h3 class="adm-form-heading">Upload fase-dokument</h3>
+                        <div class="adm-field"><label class="adm-label">Fase</label>
+                            <select v-model="phPhase" class="adm-input">
+                                <option v-for="p in phases" :key="p" :value="p">{{ p }}</option>
                             </select>
                         </div>
-                        <button @click="uploadDoc" :disabled="uploadingDoc || !docFile || !docTitle" class="adm-send-btn">
-                            {{ uploadingDoc ? 'Uploader og indekserer…' : 'Upload dokument' }}
-                        </button>
-                        <p class="adm-hint">Teksten udtrækkes automatisk, opdeles i chunks og indekseres med AI-embeddings.</p>
+                        <div class="adm-field"><label class="adm-label">Fil (PDF, Word eller TXT)</label><input type="file" accept=".txt,.pdf,.docx,.doc" @change="(e) => { phFile = e.target.files[0] || null }" class="adm-input adm-file-input" /></div>
+                        <div class="adm-field"><label class="adm-label">Titel</label><input v-model="phTitle" class="adm-input" placeholder="Fx: Vejledning til chok-fasen" /></div>
+                        <button @click="uploadPhase" :disabled="uploadingPh || !phFile || !phTitle" class="adm-send-btn">{{ uploadingPh ? 'Uploader…' : 'Upload' }}</button>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Titel</th><th>Fase</th><th>Chunks</th><th>Opdateret</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-if="!phaseSources.length"><td colspan="5" style="text-align:center;color:#9ca3af;padding:2rem">Ingen fase-dokumenter endnu</td></tr>
+                                <tr v-for="src in phaseSources" :key="src.source_url">
+                                    <td class="adm-user-name">{{ src.source_title }}</td>
+                                    <td><span class="adm-badge-email">{{ src.phase_tag }}</span></td>
+                                    <td class="adm-ai-usage">{{ src.chunks }}</td>
+                                    <td class="adm-date">{{ formatDate(src.scraped_at) }}</td>
+                                    <td><button @click="deletePhaseSource(src.source_url)" class="adm-delete-btn">× Slet</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── Sub-tab: Opgavetyper ── -->
+                <div v-if="knowledgeSubTab === 'task'">
+                    <p class="adm-hint" style="margin-bottom:1.5rem">Upload opgavetype-specifik viden der bruges i TaskChat. Matches automatisk mod opgavens type.</p>
+                    <div class="adm-form-card" style="margin-bottom:2rem;max-width:36rem">
+                        <h3 class="adm-form-heading">Upload opgavedokument</h3>
+                        <div class="adm-field"><label class="adm-label">Opgavetype</label>
+                            <select v-model="tType" class="adm-input">
+                                <option v-for="t in taskTypes" :key="t" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+                        <div class="adm-field"><label class="adm-label">Fil (PDF, Word eller TXT)</label><input type="file" accept=".txt,.pdf,.docx,.doc" @change="(e) => { tFile = e.target.files[0] || null }" class="adm-input adm-file-input" /></div>
+                        <div class="adm-field"><label class="adm-label">Titel</label><input v-model="tTitle" class="adm-input" placeholder="Fx: Vejledning til samværsaftaler" /></div>
+                        <button @click="uploadTask" :disabled="uploadingT || !tFile || !tTitle" class="adm-send-btn">{{ uploadingT ? 'Uploader…' : 'Upload' }}</button>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Titel</th><th>Opgavetype</th><th>Chunks</th><th>Opdateret</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-if="!taskRagSources.length"><td colspan="5" style="text-align:center;color:#9ca3af;padding:2rem">Ingen opgavedokumenter endnu</td></tr>
+                                <tr v-for="src in taskRagSources" :key="src.source_url">
+                                    <td class="adm-user-name">{{ src.source_title }}</td>
+                                    <td><span class="adm-badge-email">{{ src.task_type_tag }}</span></td>
+                                    <td class="adm-ai-usage">{{ src.chunks }}</td>
+                                    <td class="adm-date">{{ formatDate(src.scraped_at) }}</td>
+                                    <td><button @click="deleteTaskSource(src.source_url)" class="adm-delete-btn">× Slet</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── Sub-tab: Hukommelse ── -->
+                <div v-if="knowledgeSubTab === 'memory'">
+                    <p class="adm-hint" style="margin-bottom:1.5rem">Bruger-hukommelser udtrækkes automatisk efter hver 3. AI-besked og bruges til at personalisere fremtidige svar.</p>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Bruger</th><th>Antal hukommelser</th><th>Senest udtrukket</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-if="!memoryStats.length"><td colspan="4" style="text-align:center;color:#9ca3af;padding:2rem">Ingen bruger-hukommelser endnu</td></tr>
+                                <tr v-for="stat in memoryStats" :key="stat.user_id">
+                                    <td class="adm-user-name">{{ stat.user?.name || '—' }} <span class="adm-badge-email" style="margin-left:0.375rem">{{ stat.user?.email }}</span></td>
+                                    <td class="adm-ai-usage">{{ stat.count }}</td>
+                                    <td class="adm-date">{{ formatDate(stat.last_extracted) }}</td>
+                                    <td><button @click="deleteAllMemories(stat.user_id)" class="adm-delete-btn">× Slet alle</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -1024,6 +1169,12 @@ const nav = [
 
 /* Knowledge forms */
 .adm-knowledge-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+
+/* Knowledge sub-nav */
+.adm-sub-nav { display: flex; gap: 0.375rem; flex-wrap: wrap; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; }
+.adm-sub-nav-btn { padding: 0.375rem 0.875rem; border-radius: 0.5rem; border: none; background: transparent; color: #6b7280; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.adm-sub-nav-btn:hover { background: #f3f4f6; color: #111827; }
+.adm-sub-nav-btn-active { background: #eff6ff; color: #1d4ed8; }
 
 /* Chat accordions */
 .adm-case-accordion { border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; margin-bottom: 0.75rem; }

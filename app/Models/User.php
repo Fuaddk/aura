@@ -91,4 +91,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Task::class);
     }
+
+    public function memories(): HasMany
+    {
+        return $this->hasMany(UserMemory::class);
+    }
 }

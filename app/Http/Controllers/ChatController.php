@@ -6,6 +6,7 @@ use App\Models\CaseModel;
 use App\Models\Conversation;
 use App\Models\Task;
 use App\Services\KnowledgeService;
+use App\Services\MemoryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class ChatController extends Controller
 {
-    public function __construct(private KnowledgeService $knowledgeService) {}
+    public function __construct(
+        private KnowledgeService $knowledgeService,
+        private MemoryService $memoryService,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -129,9 +133,10 @@ class ChatController extends Controller
             ->get()
             ->reverse();
 
-        // RAG: Retrieve relevant knowledge for this task query
+        // RAG: Prefer task-type-specific RAG, fall back to general knowledge RAG
         $taskRagQuery = $task->title . ' ' . $validated['message'];
-        $taskRagContext = $this->knowledgeService->buildContext($taskRagQuery, topK: 4);
+        $taskRagContext = $this->knowledgeService->buildTaskRagContext($task->task_type, $taskRagQuery)
+            ?: $this->knowledgeService->buildContext($taskRagQuery, topK: 4);
 
         // Build Mistral messages
         $mistralMessages = [];
@@ -447,7 +452,8 @@ Indhold:
 Analyser dokumentet grundigt i kontekst af opgaven. Hjælp brugeren med at forstå hvordan dokumentet relaterer til opgaven.
 SECTION;
 
-        $taskRagContext = $this->knowledgeService->buildContext($task->title, topK: 3);
+        $taskRagContext = $this->knowledgeService->buildTaskRagContext($task->task_type, $task->title)
+            ?: $this->knowledgeService->buildContext($task->title, topK: 3);
         $systemPrompt = $this->getTaskSystemPrompt($task, $taskRagContext) . $docSection;
 
         $mistralMessages = [];
@@ -770,6 +776,13 @@ PROMPT;
         $ragResults = $this->knowledgeService->retrieve($validated['message'], topK: 5, minScore: 0.25);
         $ragContext = $this->knowledgeService->buildContext($validated['message'], topK: 5);
 
+        // New RAG layers
+        $personalityContext = $this->knowledgeService->buildPersonalityContext();
+        $memoryContext      = $this->memoryService->buildMemoryContext($user->id, $validated['message']);
+        $phaseContext       = $case->current_phase
+            ? $this->knowledgeService->buildPhaseContext($case->current_phase, $validated['message'])
+            : '';
+
         // Count prior AI turns to determine conversation phase
         $aiTurn = $history->where('role', 'assistant')->count();
 
@@ -777,8 +790,23 @@ PROMPT;
         $mistralMessages = $this->formatHistory($history);
         array_unshift($mistralMessages, [
             'role' => 'system',
-            'content' => $this->getSystemPrompt($case, $ragContext, $aiTurn),
+            'content' => $this->getSystemPrompt($case, $ragContext, $aiTurn, $memoryContext, $phaseContext, $personalityContext),
         ]);
+
+        // Register memory extraction to run after response is sent (every 3rd AI turn)
+        $capturedUserId = $user->id;
+        $capturedCaseId = $case->id;
+        $capturedAiTurn = $aiTurn;
+        app()->terminating(function () use ($capturedUserId, $capturedCaseId, $capturedAiTurn) {
+            if ($capturedAiTurn > 0 && $capturedAiTurn % 3 === 0) {
+                $text = Conversation::where('case_id', $capturedCaseId)
+                    ->whereNull('metadata->task_id')
+                    ->orderByDesc('created_at')->limit(6)->get()->reverse()
+                    ->map(fn ($m) => ($m->role === 'user' ? 'Bruger' : 'Aura') . ': ' . mb_substr($m->content, 0, 400))
+                    ->join("\n");
+                app(MemoryService::class)->extractAndStore($capturedUserId, $capturedCaseId, $text);
+            }
+        });
 
         // Build retrieved_chunks data for persistence
         $retrievedChunksData = array_map(fn($r) => [
@@ -997,6 +1025,14 @@ PROMPT;
             }
         }
 
+        // ── Parse [PHASE: X] ─────────────────────────────────────────────────
+        if (preg_match('/\[PHASE:\s*(chok|separation|juridisk|bodeling|efterskilsmisse)\]/i', $displayMessage, $phaseMatch)) {
+            $case->update(['current_phase' => strtolower($phaseMatch[1])]);
+            $displayMessage = trim(preg_replace('/\[PHASE:\s*\w+\]/i', '', $displayMessage));
+        } elseif ($aiTurn >= 3 && !$case->current_phase) {
+            $case->update(['current_phase' => 'chok']);
+        }
+
         // ── Cleanup ───────────────────────────────────────────────────────────
         $displayMessage = trim(preg_replace('/\[\/?(?:TASKS|DOCUMENT)\]/i', '', $displayMessage));
         $displayMessage = trim(preg_replace('/\n---\s*$/', '', $displayMessage));
@@ -1150,8 +1186,14 @@ PROMPT;
         }
     }
 
-    private function getSystemPrompt(CaseModel $case, string $ragContext = '', int $aiTurn = 0): string
-    {
+    private function getSystemPrompt(
+        CaseModel $case,
+        string $ragContext = '',
+        int $aiTurn = 0,
+        string $memoryContext = '',
+        string $phaseContext = '',
+        string $personalityContext = ''
+    ): string {
         $hasChildren = $case->has_children ? 'Ja' : 'Nej';
         $hasProperty = $case->has_shared_property ? 'Ja' : 'Nej';
         $phaseInstruction = $this->getPhaseInstruction($aiTurn);
@@ -1172,8 +1214,16 @@ PROMPT;
             $userPersonSection .= "\n";
         }
 
+        $personalityBlock = $personalityContext
+            ? "─── AURAS PERSONLIGHED (admin-defineret) ───\n{$personalityContext}\n\n"
+            : '';
+        $memoryBlock = $memoryContext ? "\n{$memoryContext}\n" : '';
+        $phaseBlock  = $phaseContext  ? "\n{$phaseContext}\n"  : '';
+
         return <<<PROMPT
 Du er Aura — en varm, menneskelig støtte til danskere midt i en skilsmisse eller et samlivsbrud.
+
+{$personalityBlock}
 
 ─── DIN PERSONLIGHED ───
 Du er som en klog, jordnær ven — en der tilfældigvis kender dansk skilsmisseret rigtig godt.
@@ -1249,8 +1299,7 @@ Du er brugerens støtte mod situationen — og det kræver at du er ærlig.
 Status: {$case->status}
 Har børn: {$hasChildren}
 Fælles ejendom: {$hasProperty}
-{$userPersonSection}
-
+{$userPersonSection}{$memoryBlock}
 ─── HVAD DU IKKE GØR ───
 ❌ Anbefaler specifikke advokater ved navn
 ❌ Træffer beslutninger for brugeren
@@ -1291,6 +1340,12 @@ Tags og format:
 ─── HVAD DU SKAL GØRE NU (baseret på samtalens fase) ───
 {$phaseInstruction}
 
+─── FASE-DETEKTERING ───
+Tilføj ALTID helt sidst i dit svar: [PHASE: <fase>]
+Mulige faser: chok, separation, juridisk, bodeling, efterskilsmisse
+Placer det HELT I SLUTNINGEN — efter [TASKS] hvis brugt.
+Brug aldrig [PHASE:] midt i et svar — kun i absolut slutning.
+{$phaseBlock}
 {$this->buildKnowledgeSection($ragContext)}
 PROMPT;
     }

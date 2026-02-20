@@ -10,10 +10,13 @@ use App\Models\KnowledgeChunk;
 use App\Models\SubscriptionPlan;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UserMemory;
 use App\Services\KnowledgeService;
 use App\Services\NotificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -76,6 +79,29 @@ class AdminController extends Controller
 
         $subscriptionPlans = SubscriptionPlan::orderBy('sort_order')->get();
 
+        $personalitySources = KnowledgeChunk::where('rag_type', 'personality')
+            ->selectRaw('source_url, source_title, count(*) as chunks, max(scraped_at) as scraped_at')
+            ->groupBy('source_url', 'source_title')
+            ->orderByDesc('scraped_at')
+            ->get();
+
+        $phaseSources = KnowledgeChunk::where('rag_type', 'phase')
+            ->selectRaw('source_url, source_title, phase_tag, count(*) as chunks, max(scraped_at) as scraped_at')
+            ->groupBy('source_url', 'source_title', 'phase_tag')
+            ->orderBy('phase_tag')
+            ->get();
+
+        $taskRagSources = KnowledgeChunk::where('rag_type', 'task')
+            ->selectRaw('source_url, source_title, task_type_tag, count(*) as chunks, max(scraped_at) as scraped_at')
+            ->groupBy('source_url', 'source_title', 'task_type_tag')
+            ->orderBy('task_type_tag')
+            ->get();
+
+        $memoryStats = UserMemory::selectRaw('user_id, count(*) as count, max(created_at) as last_extracted')
+            ->with('user:id,name,email')
+            ->groupBy('user_id')
+            ->get();
+
         return [
             'stats'              => $stats,
             'plans'              => $plans,
@@ -85,6 +111,10 @@ class AdminController extends Controller
             'appSettings'        => $appSettings,
             'subscriptionPlans'  => $subscriptionPlans,
             'extraUsageRate'     => (float) AppSetting::get('extra_usage_rate_per_token', 0.0004),
+            'personalitySources' => $personalitySources,
+            'phaseSources'       => $phaseSources,
+            'taskRagSources'     => $taskRagSources,
+            'memoryStats'        => $memoryStats,
         ];
     }
 
@@ -203,45 +233,196 @@ class AdminController extends Controller
             'category' => 'required|string|max:100',
         ]);
 
-        $file      = $request->file('file');
-        $filename  = $file->getClientOriginalName();
-        $extension = strtolower($file->getClientOriginalExtension());
-        $sourceUrl = 'upload:/' . $filename;
-
-        $text = match($extension) {
-            'pdf'  => $this->extractPdfText($file->getRealPath()),
-            'docx', 'doc' => $this->extractWordText($file->getRealPath()),
-            default => file_get_contents($file->getRealPath()),
-        };
-
+        $text = $this->extractTextFromUpload($request->file('file'));
         if (empty(trim($text))) {
             return back()->with('error', 'Kunne ikke udtrække tekst fra dokumentet.');
         }
 
-        $service = new KnowledgeService();
-        $chunks = $service->chunkText($text);
+        $count = $this->storeRagChunks(
+            $text,
+            'upload:/' . $request->file('file')->getClientOriginalName(),
+            $request->title,
+            $request->category,
+            'knowledge'
+        );
 
-        if (empty($chunks)) {
+        if ($count === 0) {
             return back()->with('error', 'Dokumentet indeholder ingen brugbar tekst.');
         }
+
+        return back()->with('success', "{$count} chunks gemt fra dokument.");
+    }
+
+    /* ── Personality RAG ───────────────────────────────────── */
+
+    public function uploadPersonalityDocument(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file'  => 'required|file|mimes:txt,pdf,docx,doc|max:30720',
+            'title' => 'required|string|max:200',
+        ]);
+
+        $text = $this->extractTextFromUpload($request->file('file'));
+        if (empty(trim($text))) {
+            return back()->with('error', 'Kunne ikke udtrække tekst fra dokumentet.');
+        }
+
+        $count = $this->storeRagChunks(
+            $text,
+            'personality:/' . $request->file('file')->getClientOriginalName(),
+            $request->title,
+            'personality',
+            'personality'
+        );
+
+        return back()->with('success', "{$count} chunks gemt til Personligheds-RAG.");
+    }
+
+    public function deletePersonalitySource(Request $request): RedirectResponse
+    {
+        $request->validate(['source_url' => 'required|string']);
+        $count = KnowledgeChunk::where('rag_type', 'personality')->where('source_url', $request->source_url)->delete();
+        return back()->with('success', "{$count} chunks slettet.");
+    }
+
+    /* ── Phase RAG ─────────────────────────────────────────── */
+
+    public function uploadPhaseDocument(Request $request): RedirectResponse
+    {
+        $phases = ['chok', 'separation', 'juridisk', 'bodeling', 'efterskilsmisse'];
+        $request->validate([
+            'file'      => 'required|file|mimes:txt,pdf,docx,doc|max:30720',
+            'title'     => 'required|string|max:200',
+            'phase_tag' => 'required|in:' . implode(',', $phases),
+        ]);
+
+        $text = $this->extractTextFromUpload($request->file('file'));
+        if (empty(trim($text))) {
+            return back()->with('error', 'Kunne ikke udtrække tekst fra dokumentet.');
+        }
+
+        $count = $this->storeRagChunks(
+            $text,
+            'phase:' . $request->phase_tag . ':/' . $request->file('file')->getClientOriginalName(),
+            $request->title,
+            'phase',
+            'phase',
+            $request->phase_tag
+        );
+
+        return back()->with('success', "{$count} chunks gemt til Fase-RAG ({$request->phase_tag}).");
+    }
+
+    public function deletePhaseSource(Request $request): RedirectResponse
+    {
+        $request->validate(['source_url' => 'required|string']);
+        $count = KnowledgeChunk::where('rag_type', 'phase')->where('source_url', $request->source_url)->delete();
+        return back()->with('success', "{$count} chunks slettet.");
+    }
+
+    /* ── Task RAG ──────────────────────────────────────────── */
+
+    public function uploadTaskDocument(Request $request): RedirectResponse
+    {
+        $taskTypes = ['samvaer', 'bolig', 'oekonomi', 'juridisk', 'kommune', 'dokument', 'forsikring', 'personlig'];
+        $request->validate([
+            'file'          => 'required|file|mimes:txt,pdf,docx,doc|max:30720',
+            'title'         => 'required|string|max:200',
+            'task_type_tag' => 'required|in:' . implode(',', $taskTypes),
+        ]);
+
+        $text = $this->extractTextFromUpload($request->file('file'));
+        if (empty(trim($text))) {
+            return back()->with('error', 'Kunne ikke udtrække tekst fra dokumentet.');
+        }
+
+        $count = $this->storeRagChunks(
+            $text,
+            'task:' . $request->task_type_tag . ':/' . $request->file('file')->getClientOriginalName(),
+            $request->title,
+            'task',
+            'task',
+            null,
+            $request->task_type_tag
+        );
+
+        return back()->with('success', "{$count} chunks gemt til Opgave-RAG ({$request->task_type_tag}).");
+    }
+
+    public function deleteTaskRagSource(Request $request): RedirectResponse
+    {
+        $request->validate(['source_url' => 'required|string']);
+        $count = KnowledgeChunk::where('rag_type', 'task')->where('source_url', $request->source_url)->delete();
+        return back()->with('success', "{$count} chunks slettet.");
+    }
+
+    /* ── User Memories ─────────────────────────────────────── */
+
+    public function listUserMemories(User $user): Response
+    {
+        return Inertia::render('Admin/Dashboard', array_merge($this->baseProps(), [
+            'viewUser'    => $user->only('id', 'name', 'email'),
+            'userMemories' => UserMemory::where('user_id', $user->id)
+                ->orderByDesc('created_at')
+                ->get(['id', 'content', 'category', 'created_at', 'case_id']),
+        ]));
+    }
+
+    public function deleteUserMemory(UserMemory $memory): RedirectResponse
+    {
+        $memory->delete();
+        return back()->with('success', 'Hukommelse slettet.');
+    }
+
+    public function deleteAllUserMemories(User $user): RedirectResponse
+    {
+        $count = UserMemory::where('user_id', $user->id)->delete();
+        return back()->with('success', "{$count} hukommelser slettet.");
+    }
+
+    private function extractTextFromUpload(UploadedFile $file): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        return match($extension) {
+            'pdf'         => $this->extractPdfText($file->getRealPath()),
+            'docx', 'doc' => $this->extractWordText($file->getRealPath()),
+            default       => (string) file_get_contents($file->getRealPath()),
+        };
+    }
+
+    private function storeRagChunks(
+        string $text,
+        string $sourceUrl,
+        string $title,
+        string $category,
+        string $ragType,
+        ?string $phaseTag = null,
+        ?string $taskTypeTag = null
+    ): int {
+        $service = new KnowledgeService();
+        $chunks = $service->chunkText($text);
+        if (empty($chunks)) return 0;
 
         $embeddings = $service->createEmbeddings(array_values($chunks));
 
         foreach ($chunks as $i => $chunkText) {
             KnowledgeChunk::create([
-                'source_url'   => $sourceUrl,
-                'source_title' => $request->title,
-                'content'      => $chunkText,
-                'embedding'    => $embeddings[$i] ?? null,
-                'category'     => $request->category,
-                'chunk_index'  => $i,
-                'token_count'  => $service->estimateTokens($chunkText),
-                'content_hash' => hash('sha256', $chunkText),
-                'scraped_at'   => now(),
+                'source_url'    => $sourceUrl,
+                'source_title'  => $title,
+                'content'       => $chunkText,
+                'embedding'     => $embeddings[$i] ?? null,
+                'category'      => $category,
+                'rag_type'      => $ragType,
+                'phase_tag'     => $phaseTag,
+                'task_type_tag' => $taskTypeTag,
+                'chunk_index'   => $i,
+                'token_count'   => $service->estimateTokens($chunkText),
+                'content_hash'  => hash('sha256', $chunkText),
+                'scraped_at'    => now(),
             ]);
         }
 
-        return back()->with('success', count($chunks) . ' chunks gemt fra dokument.');
+        return count($chunks);
     }
 
     private function extractPdfText(string $path): string

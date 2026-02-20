@@ -13,7 +13,11 @@ const currentPlan = user.subscription_plan || 'free';
 
 const loading = ref(null);
 
-const plans = computed(() => props.subscriptionPlans.map(sp => ({
+const visiblePlans = computed(() => props.subscriptionPlans.filter(sp =>
+    currentPlan === 'free' || sp.slug !== 'free'
+));
+
+const plans = computed(() => visiblePlans.value.map(sp => ({
     id:      sp.slug,
     name:    sp.name,
     price:   String(sp.price),

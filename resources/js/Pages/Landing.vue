@@ -209,6 +209,9 @@ onUnmounted(() => {
 
         </section>
 
+        <!-- ═══ FEATURES + HOW ROW ═══ -->
+        <div class="lp-sections-row">
+
         <!-- ═══ FEATURES SECTION ═══ -->
         <section class="lp-features-section" id="funktioner">
             <div class="lp-section-inner">
@@ -313,6 +316,8 @@ onUnmounted(() => {
                 </div>
             </div>
         </section>
+
+        </div><!-- end .lp-sections-row -->
 
         <!-- ═══ CTA BOTTOM ═══ -->
         <section class="lp-cta-section" id="priser">
@@ -1095,18 +1100,37 @@ onUnmounted(() => {
     border: 1px solid rgba(251,191,36,0.2);
 }
 
-/* ─── FEATURES SECTION ─────────────────────────────────── */
-.lp-features-section {
+/* ─── SECTIONS ROW ─────────────────────────────────────── */
+.lp-sections-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
     padding: 1.5rem;
     background: #f0f2f5;
 }
 
+@media (min-width: 1024px) {
+    .lp-sections-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ─── FEATURES SECTION ─────────────────────────────────── */
+.lp-features-section {
+    padding: 0;
+    background: transparent;
+}
+
 .lp-features-section > .lp-section-inner {
-    background: #fff;
+    background:
+        linear-gradient(rgba(248,246,255,0.85), rgba(248,246,255,0.85)) padding-box,
+        linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A) border-box;
+    border: 1.5px solid transparent;
     border-radius: 2rem;
-    padding: 4rem 3rem;
-    border: 1px solid rgba(0,0,0,0.06);
-    box-shadow: 0 2px 16px rgba(0,0,0,0.04);
+    padding: 3rem 2.5rem;
+    box-shadow: 0 4px 24px rgba(126,117,206,0.08);
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .lp-section-inner {
@@ -1249,8 +1273,8 @@ onUnmounted(() => {
 .lp-feat-panel {
     position: absolute;
     inset: 0;
-    background: #f8f8fc;
-    border: 1.5px solid #ede9f8;
+    background: rgba(255,255,255,0.75);
+    border: 1px solid rgba(126,117,206,0.15);
     border-radius: 1.5rem;
     padding: 2rem;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06);
@@ -1329,16 +1353,20 @@ onUnmounted(() => {
 
 /* ─── HOW IT WORKS ─────────────────────────────────────── */
 .lp-how {
-    padding: 1.5rem;
-    background: #f0f2f5;
+    padding: 0;
+    background: transparent;
 }
 
 .lp-how > .lp-section-inner {
-    background: #fff;
+    background:
+        linear-gradient(rgba(248,246,255,0.85), rgba(248,246,255,0.85)) padding-box,
+        linear-gradient(135deg, #D9609A, #7E75CE, #5BC4E8) border-box;
+    border: 1.5px solid transparent;
     border-radius: 2rem;
-    padding: 4rem 3rem;
-    border: 1px solid rgba(0,0,0,0.06);
-    box-shadow: 0 2px 16px rgba(0,0,0,0.04);
+    padding: 3rem 2.5rem;
+    box-shadow: 0 4px 24px rgba(217,96,154,0.08);
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .lp-steps {
@@ -1356,8 +1384,8 @@ onUnmounted(() => {
 
 .lp-step {
     position: relative;
-    background: #f8f8fc;
-    border: 1.5px solid #ede9f8;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(126,117,206,0.15);
     border-radius: 1.5rem;
     padding: 2rem;
     transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;

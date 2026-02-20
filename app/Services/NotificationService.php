@@ -69,24 +69,18 @@ class NotificationService
     public static function notifySubscriptionUpgraded(User $user, string $plan): void
     {
         $planLabels = [
-            'free'     => 'Gratis',
-            'pro'      => 'Pro',
-            'business' => 'Business',
+            'free'  => 'Gratis',
+            'basis' => 'Basis',
+            'pro'   => 'Pro',
         ];
 
-        $planLabel   = $planLabels[$plan] ?? ucfirst($plan);
-        $messageLimits = [
-            'free'     => '50',
-            'pro'      => '500',
-            'business' => 'ubegrænsede',
-        ];
-        $limit = $messageLimits[$plan] ?? '?';
+        $planLabel = $planLabels[$plan] ?? ucfirst($plan);
 
         self::create(
             $user,
             'subscription_upgraded',
             'Plan opgraderet!',
-            "Du er nu på {$planLabel}-planen med {$limit} AI-beskeder om måneden.",
+            "Du er nu på {$planLabel}-planen. God fornøjelse med Aura!",
         );
     }
 

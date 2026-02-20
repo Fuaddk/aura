@@ -91,7 +91,7 @@ class ProfileController extends Controller
     public function updateSubscription(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'plan' => ['required', 'in:free,pro,business'],
+            'plan' => ['required', 'in:free,basis,pro'],
         ]);
 
         $plan  = \App\Models\SubscriptionPlan::where('slug', $validated['plan'])->first();

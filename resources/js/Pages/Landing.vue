@@ -74,16 +74,18 @@ onUnmounted(() => {
 
     <div class="lp-root">
 
+        <!-- ═══ GLOBAL ANIMATED BACKGROUND ═══ -->
+        <div class="lp-hero-bg" aria-hidden="true">
+            <div class="lp-orb lp-orb-1"></div>
+            <div class="lp-orb lp-orb-2"></div>
+            <div class="lp-orb lp-orb-3"></div>
+            <div class="lp-orb lp-orb-4"></div>
+            <div class="lp-orb lp-orb-5"></div>
+            <div class="lp-grid-overlay"></div>
+        </div>
+
         <!-- ═══ HERO SECTION ═══ -->
         <section class="lp-hero">
-
-            <!-- Animated background -->
-            <div class="lp-hero-bg" aria-hidden="true">
-                <div class="lp-orb lp-orb-1"></div>
-                <div class="lp-orb lp-orb-2"></div>
-                <div class="lp-orb lp-orb-3"></div>
-                <div class="lp-grid-overlay"></div>
-            </div>
 
             <!-- Nav -->
             <nav class="lp-nav" :class="{ 'lp-nav-scrolled': scrollY > 60 }">
@@ -479,6 +481,7 @@ onUnmounted(() => {
     background-attachment: fixed;
     overflow-x: hidden;
     min-height: 100vh;
+    position: relative;
 }
 
 /* ─── Shared gradient text ─────────────────────────────── */
@@ -620,62 +623,76 @@ onUnmounted(() => {
     box-shadow: 0 4px 14px rgba(126,117,206,0.5);
 }
 
-/* ─── HERO ─────────────────────────────────────────────── */
-.lp-hero {
-    position: relative;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 7rem 2rem 5rem;
-    overflow: hidden;
-}
-
+/* ─── GLOBAL ANIMATED BACKGROUND ──────────────────────── */
 .lp-hero-bg {
-    position: absolute;
+    position: fixed;
     inset: 0;
     pointer-events: none;
+    z-index: 0;
 }
 
 .lp-orb {
     position: absolute;
     border-radius: 9999px;
-    filter: blur(80px);
+    filter: blur(90px);
 }
 
+/* Top-right blue orb */
 .lp-orb-1 {
-    width: 40rem;
-    height: 40rem;
-    background: rgba(91,196,232,0.18);
-    top: -10rem;
-    right: -8rem;
-    animation: orb-drift 12s ease-in-out infinite;
+    width: 44rem;
+    height: 44rem;
+    background: rgba(91,196,232,0.16);
+    top: -12rem;
+    right: -10rem;
+    animation: orb-drift 14s ease-in-out infinite;
 }
 
+/* Bottom-left pink orb */
 .lp-orb-2 {
-    width: 30rem;
-    height: 30rem;
-    background: rgba(217,96,154,0.15);
-    bottom: -5rem;
-    left: -6rem;
-    animation: orb-drift 15s ease-in-out infinite reverse;
+    width: 36rem;
+    height: 36rem;
+    background: rgba(217,96,154,0.14);
+    bottom: 10%;
+    left: -8rem;
+    animation: orb-drift 18s ease-in-out infinite reverse;
 }
 
+/* Center purple orb */
 .lp-orb-3 {
-    width: 20rem;
-    height: 20rem;
-    background: rgba(126,117,206,0.2);
-    top: 40%;
-    left: 30%;
-    animation: orb-drift 10s ease-in-out infinite 2s;
+    width: 28rem;
+    height: 28rem;
+    background: rgba(126,117,206,0.18);
+    top: 35%;
+    left: 28%;
+    animation: orb-drift 11s ease-in-out infinite 2s;
+}
+
+/* Bottom-right accent */
+.lp-orb-4 {
+    width: 22rem;
+    height: 22rem;
+    background: rgba(91,196,232,0.1);
+    bottom: 5%;
+    right: 5%;
+    animation: orb-drift 16s ease-in-out infinite 4s reverse;
+}
+
+/* Mid-left accent */
+.lp-orb-5 {
+    width: 18rem;
+    height: 18rem;
+    background: rgba(217,96,154,0.1);
+    top: 55%;
+    left: 60%;
+    animation: orb-drift 13s ease-in-out infinite 1s;
 }
 
 .lp-grid-overlay {
     position: absolute;
     inset: 0;
     background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
     background-size: 4rem 4rem;
 }
 
@@ -683,6 +700,17 @@ onUnmounted(() => {
     0%, 100% { transform: translate(0,0) scale(1); }
     33%       { transform: translate(30px,-20px) scale(1.08); }
     66%       { transform: translate(-15px,15px) scale(0.93); }
+}
+
+/* ─── HERO ─────────────────────────────────────────────── */
+.lp-hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7rem 2rem 5rem;
 }
 
 .lp-hero {
@@ -1107,6 +1135,8 @@ onUnmounted(() => {
 
 /* ─── FEATURES SECTION ─────────────────────────────────── */
 .lp-features-section {
+    position: relative;
+    z-index: 1;
     padding: 0.5rem 0.5rem 0.25rem;
 }
 
@@ -1306,6 +1336,8 @@ onUnmounted(() => {
 
 /* ─── PRICING SECTION ──────────────────────────────────── */
 .lp-pricing {
+    position: relative;
+    z-index: 1;
     padding: 0.25rem 0.5rem;
 }
 
@@ -1510,6 +1542,8 @@ onUnmounted(() => {
 
 /* ─── HOW IT WORKS ─────────────────────────────────────── */
 .lp-how {
+    position: relative;
+    z-index: 1;
     padding: 0.25rem 0.5rem 0.5rem;
 }
 
@@ -1586,6 +1620,8 @@ onUnmounted(() => {
 
 /* ─── FOOTER ───────────────────────────────────────────── */
 .lp-footer {
+    position: relative;
+    z-index: 1;
     background: rgba(5, 3, 15, 0.85);
     border-top: 1px solid rgba(255,255,255,0.07);
     margin-top: 0.5rem;

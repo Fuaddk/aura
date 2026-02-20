@@ -60,9 +60,7 @@ const plans = computed(() => props.subscriptionPlans.map(sp => ({
     id:       sp.slug,
     name:     sp.name,
     price:    String(sp.price),
-    messages: sp.slug === 'basis' ? '10x mere forbrug end gratis'
-            : sp.slug === 'pro'   ? '15x mere forbrug end gratis'
-            : 'Begrænset forbrug',
+    messages: sp.usage_label || 'Begrænset forbrug',
     features: Array.isArray(sp.features) ? sp.features : [],
     color:    sp.color || '#9ca3af',
     popular:  sp.is_popular,

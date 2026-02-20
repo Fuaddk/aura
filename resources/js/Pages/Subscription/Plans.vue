@@ -23,9 +23,7 @@ const plans = computed(() => visiblePlans.value.map(sp => ({
     price:   String(sp.price),
     period:  sp.price > 0 ? '/md.' : '',
     description: sp.description || '',
-    messages: sp.slug === 'basis' ? '10x mere forbrug end gratis'
-            : sp.slug === 'pro'   ? '15x mere forbrug end gratis'
-            : 'Begrænset forbrug',
+    messages: sp.usage_label || 'Begrænset forbrug',
     features: Array.isArray(sp.features) ? sp.features : [],
     color:   sp.color || '#9ca3af',
     popular: sp.is_popular,

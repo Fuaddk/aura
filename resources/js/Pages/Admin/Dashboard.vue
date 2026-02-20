@@ -275,7 +275,7 @@ const knownFeatures = [
 const emptyFeatureFlags = () => Object.fromEntries(knownFeatures.map(f => [f.key, false]));
 
 const emptyPlan = () => ({
-    slug: '', name: '', description: '', price: 0, tokens_limit: 100000,
+    slug: '', name: '', description: '', usage_label: '', price: 0, tokens_limit: 100000,
     features: '', stripe_price_id: '', color: '#7E75CE',
     is_popular: false, is_active: true, sort_order: 0,
     feature_flags: emptyFeatureFlags(),
@@ -511,6 +511,10 @@ const nav = [
                         <input v-model="newPlan.description" type="text" placeholder="Kort beskrivelse af pakken" class="adm-input" />
                     </div>
                     <div class="adm-sp-field" style="margin-top:.75rem">
+                        <label>Forbrugslabel <span class="adm-sp-hint">(vises på planssiden)</span></label>
+                        <input v-model="newPlan.usage_label" type="text" placeholder="f.eks. 10x mere forbrug end gratis" class="adm-input" />
+                    </div>
+                    <div class="adm-sp-field" style="margin-top:.75rem">
                         <label>Adgang til funktioner</label>
                         <div class="adm-sp-checkboxes" style="margin-top:.25rem">
                             <label v-for="f in knownFeatures" :key="f.key">
@@ -603,6 +607,10 @@ const nav = [
                             <div class="adm-sp-field" style="margin-top:.75rem">
                                 <label>Beskrivelse</label>
                                 <input v-model="editPlan.description" type="text" class="adm-input" />
+                            </div>
+                            <div class="adm-sp-field" style="margin-top:.75rem">
+                                <label>Forbrugslabel <span class="adm-sp-hint">(vises på planssiden, f.eks. "10x mere forbrug end gratis")</span></label>
+                                <input v-model="editPlan.usage_label" type="text" class="adm-input" placeholder="f.eks. 10x mere forbrug end gratis" />
                             </div>
                             <div class="adm-sp-field" style="margin-top:.75rem">
                                 <label>Adgang til funktioner</label>

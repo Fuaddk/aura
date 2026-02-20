@@ -51,6 +51,10 @@ const handleScroll = () => {
     scrollY.value = window.scrollY;
 };
 
+const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
 onMounted(() => {
     setTimeout(() => { mounted.value = true; }, 50);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -82,12 +86,18 @@ onUnmounted(() => {
             </div>
 
             <!-- Nav -->
-            <nav class="lp-nav" :class="{ 'lp-nav-scrolled': scrollY > 20 }">
+            <nav class="lp-nav" :class="{ 'lp-nav-scrolled': scrollY > 60 }">
                 <div class="lp-nav-inner">
                     <img src="/logo.png" alt="Aura" class="lp-nav-logo" />
+                    <!-- Anchor menu — kun synlig når scrolled -->
+                    <div class="lp-nav-menu" :class="{ 'lp-nav-menu-visible': scrollY > 60 }">
+                        <button @click="scrollTo('funktioner')" class="lp-nav-anchor">Funktioner</button>
+                        <button @click="scrollTo('hvordan')" class="lp-nav-anchor">Sådan virker det</button>
+                        <button @click="scrollTo('priser')" class="lp-nav-anchor">Kom i gang</button>
+                    </div>
                     <div class="lp-nav-links">
                         <Link :href="route('login')" class="lp-nav-link">Log ind</Link>
-                        <Link :href="route('register')" class="lp-nav-cta">Kom i gang gratis</Link>
+                        <Link :href="route('register')" class="lp-nav-cta">Opret konto</Link>
                     </div>
                 </div>
             </nav>
@@ -200,7 +210,7 @@ onUnmounted(() => {
         </section>
 
         <!-- ═══ FEATURES SECTION ═══ -->
-        <section class="lp-features-section">
+        <section class="lp-features-section" id="funktioner">
             <div class="lp-section-inner">
 
                 <div class="lp-section-label">Hvad Aura kan</div>
@@ -277,7 +287,7 @@ onUnmounted(() => {
         </section>
 
         <!-- ═══ HOW IT WORKS ═══ -->
-        <section class="lp-how">
+        <section class="lp-how" id="hvordan">
             <div class="lp-section-inner">
                 <div class="lp-section-label">Sådan virker det</div>
                 <h2 class="lp-section-title">Tre simple skridt<br><span class="lp-gradient-text">til overblik</span></h2>
@@ -305,7 +315,7 @@ onUnmounted(() => {
         </section>
 
         <!-- ═══ CTA BOTTOM ═══ -->
-        <section class="lp-cta-section">
+        <section class="lp-cta-section" id="priser">
             <div class="lp-cta-bg" aria-hidden="true">
                 <div class="lp-cta-orb-1"></div>
                 <div class="lp-cta-orb-2"></div>
@@ -438,13 +448,12 @@ onUnmounted(() => {
     left: 0;
     right: 0;
     z-index: 100;
-    transition: background 0.25s, box-shadow 0.25s, backdrop-filter 0.25s;
+    transition: all 0.3s ease;
 }
 
 .lp-nav-scrolled {
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+    top: 0.75rem;
+    padding: 0 1rem;
 }
 
 .lp-nav-inner {
@@ -454,36 +463,89 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    border-radius: 0;
+}
+
+.lp-nav-scrolled .lp-nav-inner {
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 1.25rem;
+    padding: 0.75rem 1.5rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
 }
 
 .lp-nav-logo {
-    height: 2rem;
+    height: 1.875rem;
     width: auto;
     filter: brightness(0) invert(1) opacity(0.9);
-    transition: filter 0.25s;
+    transition: filter 0.3s;
+    flex-shrink: 0;
 }
 
 .lp-nav-scrolled .lp-nav-logo {
     filter: none;
 }
 
+/* Anchor menu */
+.lp-nav-menu {
+    display: none;
+    align-items: center;
+    gap: 0.25rem;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+@media (min-width: 768px) {
+    .lp-nav-menu { display: flex; }
+}
+
+.lp-nav-menu-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.lp-nav-anchor {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.75);
+    background: none;
+    border: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.625rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.lp-nav-scrolled .lp-nav-anchor { color: #4b5563; }
+.lp-nav-anchor:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.lp-nav-scrolled .lp-nav-anchor:hover { background: rgba(126,117,206,0.08); color: #7E75CE; }
+
 .lp-nav-links {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 .lp-nav-link {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: rgba(255,255,255,0.8);
     text-decoration: none;
-    transition: color 0.15s;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.625rem;
+    transition: all 0.15s;
 }
 
-.lp-nav-scrolled .lp-nav-link { color: #374151; }
-.lp-nav-link:hover { color: #fff; }
-.lp-nav-scrolled .lp-nav-link:hover { color: #7E75CE; }
+.lp-nav-scrolled .lp-nav-link { color: #4b5563; }
+.lp-nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.lp-nav-scrolled .lp-nav-link:hover { color: #7E75CE; background: rgba(126,117,206,0.08); }
 
 .lp-nav-cta {
     font-size: 0.875rem;
@@ -491,17 +553,17 @@ onUnmounted(() => {
     color: #fff;
     background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.3);
-    backdrop-filter: blur(4px);
     padding: 0.5rem 1.125rem;
     border-radius: 9999px;
     text-decoration: none;
     transition: all 0.15s;
+    white-space: nowrap;
 }
 
 .lp-nav-scrolled .lp-nav-cta {
     background: linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A);
     border-color: transparent;
-    box-shadow: 0 2px 10px rgba(126,117,206,0.35);
+    box-shadow: 0 2px 10px rgba(126,117,206,0.3);
 }
 
 .lp-nav-cta:hover {
@@ -510,7 +572,6 @@ onUnmounted(() => {
 }
 
 .lp-nav-scrolled .lp-nav-cta:hover {
-    background: linear-gradient(135deg, #45b8e0, #6e66c0, #cc4f8e);
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(126,117,206,0.45);
 }
@@ -1036,8 +1097,16 @@ onUnmounted(() => {
 
 /* ─── FEATURES SECTION ─────────────────────────────────── */
 .lp-features-section {
-    padding: 6rem 2rem;
-    background: #f9fafb;
+    padding: 1.5rem;
+    background: #f0f2f5;
+}
+
+.lp-features-section > .lp-section-inner {
+    background: #fff;
+    border-radius: 2rem;
+    padding: 4rem 3rem;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.04);
 }
 
 .lp-section-inner {
@@ -1092,7 +1161,7 @@ onUnmounted(() => {
     padding: 1rem 1.125rem;
     background: transparent;
     border: 1.5px solid transparent;
-    border-radius: 0.875rem;
+    border-radius: 1.125rem;
     cursor: pointer;
     text-align: left;
     transition: all 0.2s ease;
@@ -1180,9 +1249,9 @@ onUnmounted(() => {
 .lp-feat-panel {
     position: absolute;
     inset: 0;
-    background: #fff;
-    border: 1.5px solid #e5e7eb;
-    border-radius: 1.25rem;
+    background: #f8f8fc;
+    border: 1.5px solid #ede9f8;
+    border-radius: 1.5rem;
     padding: 2rem;
     box-shadow: 0 8px 30px rgba(0,0,0,0.06);
     opacity: 0;
@@ -1260,8 +1329,16 @@ onUnmounted(() => {
 
 /* ─── HOW IT WORKS ─────────────────────────────────────── */
 .lp-how {
-    padding: 6rem 2rem;
+    padding: 1.5rem;
+    background: #f0f2f5;
+}
+
+.lp-how > .lp-section-inner {
     background: #fff;
+    border-radius: 2rem;
+    padding: 4rem 3rem;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.04);
 }
 
 .lp-steps {
@@ -1279,17 +1356,17 @@ onUnmounted(() => {
 
 .lp-step {
     position: relative;
-    background: #f9fafb;
-    border: 1.5px solid #e5e7eb;
-    border-radius: 1.125rem;
-    padding: 1.75rem;
+    background: #f8f8fc;
+    border: 1.5px solid #ede9f8;
+    border-radius: 1.5rem;
+    padding: 2rem;
     transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
 }
 
 .lp-step:hover {
-    box-shadow: 0 8px 30px rgba(126,117,206,0.1);
-    border-color: rgba(126,117,206,0.25);
-    transform: translateY(-3px);
+    box-shadow: 0 12px 36px rgba(126,117,206,0.12);
+    border-color: rgba(126,117,206,0.3);
+    transform: translateY(-4px);
 }
 
 .lp-step-num {
@@ -1325,10 +1402,39 @@ onUnmounted(() => {
 /* ─── CTA BOTTOM ───────────────────────────────────────── */
 .lp-cta-section {
     position: relative;
-    padding: 6rem 2rem;
-    background: linear-gradient(145deg, #1a3a5c 0%, #2d2060 40%, #4a1a4a 75%, #3d1030 100%);
+    padding: 1.5rem;
+    background: #f0f2f5;
     overflow: hidden;
     text-align: center;
+}
+
+.lp-cta-section > .lp-cta-bg,
+.lp-cta-section > .lp-cta-content {
+    border-radius: 2rem;
+    overflow: hidden;
+}
+
+.lp-cta-section::before {
+    content: '';
+    position: absolute;
+    inset: 1.5rem;
+    background: linear-gradient(145deg, #1a3a5c 0%, #2d2060 40%, #4a1a4a 75%, #3d1030 100%);
+    border-radius: 2rem;
+    z-index: 0;
+}
+
+.lp-cta-bg {
+    position: absolute;
+    inset: 1.5rem;
+    border-radius: 2rem;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.lp-cta-content {
+    position: relative;
+    z-index: 2;
+    padding: 5rem 2rem;
 }
 
 .lp-cta-bg {

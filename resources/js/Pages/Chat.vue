@@ -80,6 +80,15 @@ const canSend = computed(() => {
 const currentCaseId = ref(props.activeCase?.id || null);
 let abortController = null;
 
+// Model selector
+const selectedModel = ref(page.props.auth?.user?.preferred_model ?? 'mistral-small-latest');
+const isPaidPlan = computed(() => page.props.auth?.user?.subscription_plan !== 'free');
+const selectModel = (model) => {
+    if (model === 'mistral-large-latest' && !isPaidPlan.value) return;
+    selectedModel.value = model;
+    window.axios.patch(route('user.preferred-model'), { model });
+};
+
 // File upload state
 const uploadFile = ref(null);
 const uploadPreview = ref(null);
@@ -155,6 +164,7 @@ const sendMessage = async () => {
             formData.append('file', fileToSend);
             if (currentCaseId.value) formData.append('case_id', currentCaseId.value);
             if (userMessage.trim()) formData.append('message', userMessage);
+            formData.append('model', selectedModel.value);
             res = await fetch(route('chat.upload'), {
                 method: 'POST',
                 headers: {
@@ -177,6 +187,7 @@ const sendMessage = async () => {
                 body: JSON.stringify({
                     message: userMessage,
                     case_id: currentCaseId.value,
+                    model: selectedModel.value,
                 }),
                 signal: abortController.signal,
             });
@@ -545,26 +556,49 @@ onMounted(() => {
                                 class="chat-textarea"
                                 :disabled="isLoading || !canSend"
                             ></textarea>
-                            <!-- Paperclip button -->
-                            <button
-                                @click="fileInputRef.click()"
-                                :disabled="isLoading || !canSend"
-                                class="chat-attach-btn"
-                                title="Vedhæft dokument (PDF, billede, TXT)"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
-                                </svg>
-                            </button>
-                            <button
-                                @click="sendMessage"
-                                :disabled="(!message.trim() && !uploadFile) || isLoading || !canSend"
-                                class="chat-send-btn"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
-                                </svg>
-                            </button>
+                            <!-- Bottom toolbar: model selector + paperclip + send -->
+                            <div class="chat-input-bottom">
+                                <div class="chat-model-selector">
+                                    <button
+                                        @click="selectModel('mistral-small-latest')"
+                                        :class="['chat-model-btn', { 'chat-model-btn-active': selectedModel === 'mistral-small-latest' }]"
+                                        title="Aura-MS-o1 — Mistral Small (hurtig, alle planer)"
+                                    >Aura-MS-o1</button>
+                                    <button
+                                        @click="selectModel('mistral-large-latest')"
+                                        :class="['chat-model-btn', { 'chat-model-btn-active': selectedModel === 'mistral-large-latest', 'chat-model-btn-locked': !isPaidPlan }]"
+                                        :title="isPaidPlan ? 'Aura-ML-o2 — Mistral Large (kraftfuld)' : 'Kræver betalt plan'"
+                                    >
+                                        Aura-ML-o2
+                                        <svg v-if="!isPaidPlan" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:0.7em;height:0.7em;display:inline;vertical-align:middle;margin-left:2px;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Paperclip button -->
+                                <button
+                                    @click="fileInputRef.click()"
+                                    :disabled="isLoading || !canSend"
+                                    class="chat-attach-btn"
+                                    title="Vedhæft dokument (PDF, billede, TXT)"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                    </svg>
+                                </button>
+
+                                <!-- Send button -->
+                                <button
+                                    @click="sendMessage"
+                                    :disabled="(!message.trim() && !uploadFile) || isLoading || !canSend"
+                                    class="chat-send-btn"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <p class="chat-disclaimer">Aura kan lave fejl. Overvej at tjekke vigtig information.</p>
                     </div>

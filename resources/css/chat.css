@@ -1072,7 +1072,7 @@
     border: 0;
     resize: none;
     outline: none;
-    padding: 1rem 3.5rem 1rem 1.25rem;
+    padding: 0.875rem 1.25rem 0.5rem 1.25rem;
     font-size: 15px;
     color: #111827;
     max-height: 200px;
@@ -1087,9 +1087,7 @@
 }
 
 .chat-send-btn {
-    position: absolute;
-    right: 0.75rem;
-    bottom: 0.75rem;
+    flex-shrink: 0;
     width: 2rem;
     height: 2rem;
     display: flex;
@@ -2930,13 +2928,11 @@
 
 .chat-attach-btn {
     flex-shrink: 0;
-    align-self: flex-end;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    margin-bottom: 0.25rem;
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -3359,4 +3355,46 @@
 @keyframes modal-pop {
     from { transform: scale(0.94) translateY(0.5rem); opacity: 0; }
     to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* ── Bottom toolbar (model selector + paperclip row) ────────────────── */
+.chat-input-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 0.5rem 0.4rem 0.75rem;
+}
+
+/* ── Model selector ─────────────────────────────────────────────────── */
+.chat-model-selector {
+    display: flex;
+    gap: 0.2rem;
+    align-items: center;
+    flex: 1;
+}
+.chat-model-btn {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    border: 1.5px solid #e5e7eb;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+.chat-model-btn:hover:not(.chat-model-btn-locked) {
+    border-color: #7E75CE;
+    color: #7E75CE;
+}
+.chat-model-btn-active {
+    background: #7E75CE;
+    border-color: #7E75CE;
+    color: #fff !important;
+}
+.chat-model-btn-locked {
+    cursor: not-allowed;
+    opacity: 0.5;
 }

@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                     'is_admin'          => $user->is_admin,
                     'email_verified_at' => $user->email_verified_at,
                     'subscription_plan' => $user->subscription_plan,
+                    'preferred_model'   => $user->preferred_model ?? 'mistral-small-latest',
                     'wallet_balance'    => $user->wallet_balance,
                     'ai_tokens_used'        => $user->ai_tokens_used,
                     'ai_tokens_limit'       => $user->ai_tokens_limit,

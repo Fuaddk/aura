@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -121,6 +122,27 @@ class ProfileController extends Controller
         $request->user()->update($validated);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Gem brugerens foretrukne AI-model.
+     */
+    public function updatePreferredModel(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'model' => ['required', Rule::in(['mistral-small-latest', 'mistral-large-latest'])],
+        ]);
+
+        $user = $request->user();
+
+        // Gratis plan låses altid til small-model
+        if ($user->subscription_plan === 'free') {
+            $validated['model'] = 'mistral-small-latest';
+        }
+
+        $user->update(['preferred_model' => $validated['model']]);
+
+        return response()->json(['model' => $user->preferred_model]);
     }
 
     /**

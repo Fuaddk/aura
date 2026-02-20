@@ -35,6 +35,7 @@ class User extends Authenticatable
         'auto_refill_amount',
         'ai_tokens_used',
         'ai_tokens_limit',
+        'preferred_model',
     ];
 
     protected $hidden = [

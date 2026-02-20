@@ -61,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/extra-usage', [ProfileController::class, 'updateExtraUsage'])->name('profile.extra-usage');
+    Route::patch('/user/preferred-model', [ProfileController::class, 'updatePreferredModel'])->name('user.preferred-model');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Sensitive profile operations — strict rate limiting

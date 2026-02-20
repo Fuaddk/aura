@@ -742,9 +742,17 @@ PROMPT;
         $validated = $request->validate([
             'message' => 'required|string|max:2000',
             'case_id' => 'nullable|exists:cases,id',
+            'model'   => 'nullable|string',
         ]);
 
         $user = auth()->user();
+
+        // Resolve model — gratis plan er låst til small
+        $allowedModels = ['mistral-small-latest', 'mistral-large-latest'];
+        $requestedModel = $validated['model'] ?? 'mistral-small-latest';
+        $chatModel = ($user->subscription_plan === 'free' || !in_array($requestedModel, $allowedModels))
+            ? 'mistral-small-latest'
+            : $requestedModel;
 
         // Enforce AI message limit (return JSON before opening stream)
         if ($err = $this->checkTokenLimit($user)) return $err;
@@ -822,7 +830,7 @@ PROMPT;
         // Stream the response via SSE
         return response()->stream(function () use (
             $mistralMessages, $case, $user, $aiTurn,
-            $history, $retrievedChunksData, $validated
+            $history, $retrievedChunksData, $validated, $chatModel
         ) {
             // Disable all output buffering so chunks reach the client immediately
             while (ob_get_level() > 0) {
@@ -831,7 +839,7 @@ PROMPT;
 
             // Call Mistral with stream=true
             $payload = json_encode([
-                'model'      => 'mistral-small-latest',
+                'model'      => $chatModel,
                 'messages'   => $mistralMessages,
                 'max_tokens' => 3000,
                 'stream'     => true,
@@ -892,7 +900,7 @@ PROMPT;
             // ── Parse structured data from full response ──────────────────────
             [$displayMessage, $document, $createdTasks] = $this->parseAndPersist(
                 $fullContent, $case, $user, $aiTurn, $history,
-                $retrievedChunksData, $validated['message']
+                $retrievedChunksData, $validated['message'], $chatModel
             );
 
             // Send final done event with tasks + document
@@ -929,7 +937,8 @@ PROMPT;
         int $aiTurn,
         $history,
         array $retrievedChunksData,
-        string $originalUserMessage
+        string $originalUserMessage,
+        string $modelUsed = 'mistral-small-latest'
     ): array {
         $displayMessage = $aiMessage;
         $document       = null;
@@ -1065,7 +1074,7 @@ PROMPT;
             'user_id'          => $user->id,
             'role'             => 'assistant',
             'content'          => $displayMessage,
-            'model_used'       => 'mistral-small-latest',
+            'model_used'       => $modelUsed,
             'retrieved_chunks' => !empty($retrievedChunksData) ? $retrievedChunksData : null,
             'metadata'         => !empty($metadata) ? $metadata : null,
         ]);
@@ -1803,6 +1812,7 @@ LAW;
         $request->validate([
             'file'    => 'required|file|max:10240|mimes:pdf,txt,jpg,jpeg,png',
             'case_id' => 'nullable|exists:cases,id',
+            'model'   => 'nullable|string',
         ]);
 
         $file = $request->file('file');
@@ -1811,6 +1821,13 @@ LAW;
         }
 
         $user = auth()->user();
+
+        // Resolve model — gratis plan er låst til small
+        $allowedModels = ['mistral-small-latest', 'mistral-large-latest'];
+        $requestedModel = $request->input('model', 'mistral-small-latest');
+        $chatModel = ($user->subscription_plan === 'free' || !in_array($requestedModel, $allowedModels))
+            ? 'mistral-small-latest'
+            : $requestedModel;
 
         if ($err = $this->checkTokenLimit($user)) return $err;
 
@@ -1922,14 +1939,14 @@ SECTION;
         $caseId = $case->id;
 
         return response()->stream(function () use (
-            $mistralMessages, $case, $user, $aiTurn, $history, $originalFilename, $caseId
+            $mistralMessages, $case, $user, $aiTurn, $history, $originalFilename, $caseId, $chatModel
         ) {
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
 
             $payload = json_encode([
-                'model'      => 'mistral-small-latest',
+                'model'      => $chatModel,
                 'messages'   => $mistralMessages,
                 'max_tokens' => 3000,
                 'stream'     => true,
@@ -1983,7 +2000,7 @@ SECTION;
             }
 
             [$displayMessage, $aiDocument, $createdTasks] = $this->parseAndPersist(
-                $fullContent, $case, $user, $aiTurn, $history, [], $originalFilename
+                $fullContent, $case, $user, $aiTurn, $history, [], $originalFilename, $chatModel
             );
 
             echo 'data: ' . json_encode([

@@ -336,7 +336,7 @@ const formatDate = (date) => {
 };
 
 const planLabel = computed(() => Object.fromEntries((props.subscriptionPlans ?? []).map(p => [p.slug, p.name])));
-const planColor = { free: '#6b7280', pro: '#7c3aed', business: '#0891b2', basis: '#059669' };
+const planColor = { free: '#6b7280', basis: '#059669', pro: '#7c3aed' };
 const totalPlans = computed(() => Object.values(props.plans).reduce((a, b) => a + b, 0));
 
 const categories = [

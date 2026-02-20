@@ -6,6 +6,7 @@ use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,6 +63,7 @@ class SubscriptionController extends Controller
                     'subscription_plan' => $plan,
                     'ai_tokens_limit' => $limit,
                 ]);
+                Cache::forget("user:{$user->id}:plan_features");
 
                 return redirect()->route('profile.edit', ['section' => 'subscription'])
                     ->with('status', 'subscription-updated');
@@ -101,6 +103,7 @@ class SubscriptionController extends Controller
                         'subscription_plan' => $plan,
                         'ai_tokens_limit' => $this->limitForPlan($plan),
                     ]);
+                    Cache::forget("user:{$user->id}:plan_features");
 
                     \App\Services\NotificationService::notifySubscriptionUpgraded($user, $plan);
 
@@ -152,6 +155,7 @@ class SubscriptionController extends Controller
             'subscription_plan' => 'free',
             'ai_tokens_limit' => $this->limitForPlan('free'),
         ]);
+        Cache::forget("user:{$user->id}:plan_features");
 
         return redirect()->route('profile.edit', ['section' => 'subscription'])
             ->with('status', 'subscription-cancelled');

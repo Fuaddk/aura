@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rules\Password;
@@ -95,10 +96,12 @@ class ProfileController extends Controller
         $plan  = \App\Models\SubscriptionPlan::where('slug', $validated['plan'])->first();
         $limit = $plan ? ($plan->tokens_limit === 0 ? 9999999 : $plan->tokens_limit) : 100000;
 
-        $request->user()->update([
+        $user = $request->user();
+        $user->update([
             'subscription_plan' => $validated['plan'],
             'ai_tokens_limit'   => $limit,
         ]);
+        Cache::forget("user:{$user->id}:plan_features");
 
         return Redirect::route('profile.edit')->with('status', 'subscription-updated');
     }

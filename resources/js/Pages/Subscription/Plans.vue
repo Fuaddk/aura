@@ -19,10 +19,9 @@ const plans = computed(() => props.subscriptionPlans.map(sp => ({
     price:   String(sp.price),
     period:  sp.price > 0 ? '/md.' : '',
     description: sp.description || '',
-    messages: sp.slug === 'free' ? 'Begrænset forbrug'
-            : sp.slug === 'basis' ? '10x mere forbrug end gratis'
+    messages: sp.slug === 'basis' ? '10x mere forbrug end gratis'
             : sp.slug === 'pro'   ? '15x mere forbrug end gratis'
-            : 'Ubegrænset forbrug',
+            : 'Begrænset forbrug',
     features: Array.isArray(sp.features) ? sp.features : [],
     color:   sp.color || '#9ca3af',
     popular: sp.is_popular,

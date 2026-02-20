@@ -399,7 +399,7 @@ Inkluder kun tasks-arrayet hvis relevant er true. Maksimalt 3 opgaver.
 PROMPT;
 
         $payload = json_encode([
-            'model'       => 'mistral-small-latest',
+            'model'       => 'mistral-large-latest',
             'messages'    => [['role' => 'user', 'content' => $prompt]],
             'temperature' => 0.1,
             'max_tokens'  => 400,

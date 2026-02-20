@@ -12,6 +12,18 @@
     overflow-x: hidden;
     min-height: 100vh;
     position: relative;
+    display: flex;
+}
+
+/* ─── MAIN CONTENT (right of sidebar) ──────────────────── */
+.lp-main {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .lp-main { margin-left: 172px; }
 }
 
 /* ─── Shared gradient text ─────────────────────────────── */
@@ -22,82 +34,131 @@
     background-clip: text;
 }
 
-/* ─── SIDEBAR ──────────────────────────────────────────── */
+/* ─── LEFT SIDEBAR ─────────────────────────────────────── */
 .lp-sidebar {
     position: fixed;
-    right: 1.75rem;
-    top: 50%;
-    transform: translateY(-50%);
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 172px;
     z-index: 50;
+    background: rgba(6, 4, 16, 0.93);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-right: 1px solid rgba(255,255,255,0.06);
     display: none;
-}
-
-@media (min-width: 1280px) {
-    .lp-sidebar { display: block; }
-}
-
-.lp-sidebar-inner {
-    display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    align-items: flex-end;
+    overflow: hidden;
 }
 
-.lp-sidebar-item {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.25rem 0;
-    flex-direction: row-reverse;
+@media (min-width: 1024px) {
+    .lp-sidebar { display: flex; }
 }
 
-.lp-sidebar-dot {
-    width: 0.4375rem;
-    height: 0.4375rem;
-    border-radius: 9999px;
-    background: rgba(255,255,255,0.22);
-    border: 1px solid rgba(255,255,255,0.15);
-    transition: all 0.3s ease;
+/* Hide top nav on desktop — sidebar handles navigation */
+@media (min-width: 1024px) {
+    .lp-nav { display: none !important; }
+}
+
+.lp-sidebar-logo {
+    padding: 1.75rem 1.25rem 1.25rem;
     flex-shrink: 0;
 }
 
-.lp-sidebar-item:hover .lp-sidebar-dot {
-    background: rgba(255,255,255,0.55);
-    transform: scale(1.3);
+.lp-sidebar-logo img {
+    height: 1.625rem;
+    width: auto;
+    filter: brightness(0) invert(1) opacity(0.9);
 }
 
-.lp-sidebar-item-active .lp-sidebar-dot {
-    background: #fff;
-    box-shadow: 0 0 10px rgba(255,255,255,0.55), 0 0 20px rgba(126,117,206,0.4);
-    transform: scale(1.4);
-    border-color: rgba(255,255,255,0.5);
+.lp-sidebar-nav {
+    flex: 1;
+    padding: 0.25rem 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    overflow-y: auto;
 }
 
-.lp-sidebar-label {
-    font-size: 0.6875rem;
+.lp-sidebar-nav-item {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.38);
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.625rem;
+    cursor: pointer;
+    width: 100%;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+
+.lp-sidebar-nav-item:hover {
+    color: rgba(255,255,255,0.78);
+    background: rgba(255,255,255,0.05);
+}
+
+.lp-sidebar-nav-item-active {
+    color: #fff !important;
+    font-weight: 700;
+    background: rgba(255,255,255,0.08);
+}
+
+.lp-sidebar-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 1rem 1.25rem 0;
+    flex-shrink: 0;
+}
+
+.lp-sidebar-bottom {
+    padding: 1rem 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.lp-sidebar-login-btn {
+    display: block;
+    text-align: center;
+    font-size: 0.8125rem;
     font-weight: 600;
-    color: rgba(255,255,255,0.35);
-    letter-spacing: 0.04em;
-    transition: all 0.25s ease;
-    opacity: 0;
-    transform: translateX(6px);
-    white-space: nowrap;
-    pointer-events: none;
-    text-transform: uppercase;
+    color: rgba(255,255,255,0.68);
+    text-decoration: none;
+    padding: 0.6rem 1rem;
+    border-radius: 0.625rem;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: transparent;
+    transition: all 0.15s;
 }
 
-.lp-sidebar-item:hover .lp-sidebar-label,
-.lp-sidebar-item-active .lp-sidebar-label {
-    opacity: 1;
-    transform: translateX(0);
-    color: rgba(255,255,255,0.75);
-}
-
-.lp-sidebar-item-active .lp-sidebar-label {
+.lp-sidebar-login-btn:hover {
     color: #fff;
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.07);
+}
+
+.lp-sidebar-cta-btn {
+    display: block;
+    text-align: center;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #fff;
+    text-decoration: none;
+    padding: 0.6875rem 1rem;
+    border-radius: 0.625rem;
+    background: linear-gradient(135deg, #5BC4E8 0%, #7E75CE 50%, #D9609A 100%);
+    box-shadow: 0 4px 16px rgba(126,117,206,0.38);
+    transition: all 0.15s;
+}
+
+.lp-sidebar-cta-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(126,117,206,0.55);
 }
 
 /* ─── NAV ───────────────────────────────────────────────── */
@@ -298,7 +359,7 @@
 @media (min-width: 1024px) {
     .lp-hero {
         grid-template-columns: 1fr 1fr;
-        padding: 7rem 4rem 5rem;
+        padding: 3.5rem 3.5rem 5rem;
     }
 }
 

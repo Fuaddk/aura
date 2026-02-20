@@ -26,8 +26,6 @@ const scrollTo = (id) => {
 const handleScroll = () => {
     scrollY.value = window.scrollY;
 
-    // Detect active section — check from bottom to top, first one whose top
-    // is at or above 40% of the viewport height wins.
     const ids = ['hvordan', 'priser', 'funktioner'];
     for (const id of ids) {
         const el = document.getElementById(id);
@@ -53,12 +51,20 @@ onUnmounted(() => {
 
     <div class="lp-root">
         <LandingBackground />
-        <LandingNav      :scrollY="scrollY" :scrollTo="scrollTo" />
-        <LandingSidebar  :activeSection="activeSection" :scrollTo="scrollTo" />
-        <LandingHero />
-        <LandingFeatures />
-        <LandingPricing />
-        <LandingHow />
-        <LandingFooter />
+
+        <!-- Left sidebar — desktop only (CSS hides on mobile) -->
+        <LandingSidebar :activeSection="activeSection" :scrollTo="scrollTo" />
+
+        <!-- Top nav — mobile only (CSS hides on desktop) -->
+        <LandingNav :scrollY="scrollY" :scrollTo="scrollTo" />
+
+        <!-- Main scrollable content -->
+        <main class="lp-main">
+            <LandingHero />
+            <LandingFeatures />
+            <LandingPricing />
+            <LandingHow />
+            <LandingFooter />
+        </main>
     </div>
 </template>

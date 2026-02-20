@@ -1,31 +1,48 @@
 <script setup>
+import { Link } from '@inertiajs/vue3';
+
 defineProps({
     activeSection: { type: String, default: 'hero' },
     scrollTo: { type: Function, required: true },
 });
 
-const sections = [
-    { id: 'hero',      label: 'Top' },
+const navItems = [
+    { id: 'hero',       label: 'Kom i gang' },
     { id: 'funktioner', label: 'Funktioner' },
-    { id: 'priser',    label: 'Priser' },
-    { id: 'hvordan',   label: 'Sådan' },
+    { id: 'priser',     label: 'Priser' },
+    { id: 'hvordan',    label: 'Sådan virker det' },
 ];
 </script>
 
 <template>
-    <nav class="lp-sidebar" aria-label="Sektionsnavigation">
-        <div class="lp-sidebar-inner">
-            <button
-                v-for="s in sections"
-                :key="s.id"
-                class="lp-sidebar-item"
-                :class="{ 'lp-sidebar-item-active': activeSection === s.id }"
-                @click="scrollTo(s.id)"
-                :title="s.label"
-            >
-                <span class="lp-sidebar-dot"></span>
-                <span class="lp-sidebar-label">{{ s.label }}</span>
-            </button>
+    <aside class="lp-sidebar" aria-label="Sidenavigation">
+
+        <!-- Logo -->
+        <div class="lp-sidebar-logo">
+            <img src="/logo.png" alt="Aura" />
         </div>
-    </nav>
+
+        <!-- Navigation -->
+        <nav class="lp-sidebar-nav">
+            <button
+                v-for="item in navItems"
+                :key="item.id"
+                class="lp-sidebar-nav-item"
+                :class="{ 'lp-sidebar-nav-item-active': activeSection === item.id }"
+                @click="scrollTo(item.id)"
+            >
+                {{ item.label }}
+            </button>
+        </nav>
+
+        <!-- Divider -->
+        <div class="lp-sidebar-divider"></div>
+
+        <!-- Auth buttons -->
+        <div class="lp-sidebar-bottom">
+            <Link :href="route('login')" class="lp-sidebar-login-btn">Log ind</Link>
+            <Link :href="route('register')" class="lp-sidebar-cta-btn">Opret konto</Link>
+        </div>
+
+    </aside>
 </template>

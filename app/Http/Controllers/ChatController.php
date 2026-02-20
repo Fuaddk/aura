@@ -363,6 +363,10 @@ class ChatController extends Controller
             return response()->json(['message' => 'Filtypen matcher ikke indholdet.'], 422);
         }
 
+        if ($user->subscription_plan === 'free') {
+            return response()->json(['message' => 'upload_not_allowed'], 403);
+        }
+
         if ($err = $this->checkTokenLimit($user)) return $err;
 
         // Resolve model (free plan always gets small)
@@ -384,16 +388,7 @@ class ChatController extends Controller
         // Extract text from uploaded file
         $extractedText = '';
         try {
-            if ($extension === 'pdf') {
-                $parser        = new \Smalot\PdfParser\Parser();
-                $pdfDoc        = $parser->parseFile($absolutePath);
-                $extractedText = $pdfDoc->getText();
-
-                // Fallback for scanned PDFs
-                if (empty(trim($extractedText))) {
-                    $extractedText = $this->extractTextFromScannedPdf($absolutePath);
-                }
-            } elseif ($extension === 'txt') {
+            if ($extension === 'txt') {
                 $raw = file_get_contents($absolutePath);
                 // Detect and convert UTF-16
                 if (str_starts_with($raw, "\xFF\xFE")) {
@@ -403,10 +398,8 @@ class ChatController extends Controller
                 }
                 $extractedText = $raw;
             } else {
-                // JPG / PNG — use Mistral vision
-                $base64   = base64_encode(file_get_contents($absolutePath));
-                $mimeVis  = in_array($extension, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png';
-                $extractedText = $this->extractTextFromImage($base64, $mimeVis);
+                // PDF or image — use Mistral OCR
+                $extractedText = $this->extractTextWithMistralOCR($absolutePath, $extension);
             }
         } catch (\Throwable $e) {
             Log::error('Task document text extraction failed', ['error' => $e->getMessage()]);
@@ -645,7 +638,7 @@ SECTION;
             // Estimate and track token usage (input + output chars / 4)
             $inputText  = collect($mistralMessages)->pluck('content')->join(' ');
             $tokensUsed = max(1, (int) ((mb_strlen($inputText) + mb_strlen($fullContent)) / 4));
-            $this->trackTokensAndDeductWallet($user, $tokensUsed);
+            $this->trackTokensAndDeductWallet($user, $tokensUsed, $chatModel);
 
             // Send done event
             echo 'data: ' . json_encode([
@@ -1099,7 +1092,7 @@ PROMPT;
         // Estimate and track token usage (input history + output / 4)
         $inputText  = $history->pluck('content')->join(' ') . ' ' . $originalUserMessage;
         $tokensUsed = max(1, (int) ((mb_strlen($inputText) + mb_strlen($aiMessage)) / 4));
-        $this->trackTokensAndDeductWallet($user, $tokensUsed);
+        $this->trackTokensAndDeductWallet($user, $tokensUsed, $modelUsed);
 
         if (!$case->title) {
             $this->generateTitle($case, $originalUserMessage);
@@ -1839,6 +1832,10 @@ LAW;
 
         $user = auth()->user();
 
+        if ($user->subscription_plan === 'free') {
+            return response()->json(['message' => 'upload_not_allowed'], 403);
+        }
+
         // Resolve model — gratis plan er låst til small
         $allowedModels = ['mistral-small-latest', 'mistral-large-latest'];
         $requestedModel = $request->input('model', 'mistral-small-latest');
@@ -1874,16 +1871,7 @@ LAW;
         // Extract text
         $extractedText = '';
         try {
-            if ($extension === 'pdf') {
-                $parser        = new \Smalot\PdfParser\Parser();
-                $pdfDoc        = $parser->parseFile($absolutePath);
-                $extractedText = $pdfDoc->getText();
-
-                // Fallback for scanned PDFs: convert first page to image → vision OCR
-                if (empty(trim($extractedText))) {
-                    $extractedText = $this->extractTextFromScannedPdf($absolutePath);
-                }
-            } elseif ($extension === 'txt') {
+            if ($extension === 'txt') {
                 $raw = file_get_contents($absolutePath);
                 // Detect and convert UTF-16 (LE/BE) — common for Windows-created TXT files
                 if (str_starts_with($raw, "\xFF\xFE")) {
@@ -1893,10 +1881,8 @@ LAW;
                 }
                 $extractedText = $raw;
             } else {
-                // JPG / PNG — use Mistral vision
-                $base64   = base64_encode(file_get_contents($absolutePath));
-                $mimeVis  = in_array($extension, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png';
-                $extractedText = $this->extractTextFromImage($base64, $mimeVis);
+                // PDF or image — use Mistral OCR
+                $extractedText = $this->extractTextWithMistralOCR($absolutePath, $extension);
             }
         } catch (\Throwable $e) {
             Log::error('Document text extraction failed', ['error' => $e->getMessage()]);
@@ -2043,143 +2029,59 @@ SECTION;
         ]);
     }
 
+
     /**
-     * Convert the first page of a scanned PDF to JPEG and run vision OCR.
-     * Tries Imagick first, then Ghostscript via exec().
+     * Extract text from a PDF or image using Mistral OCR (mistral-ocr-latest).
+     * Supports PDF and JPG/PNG. Returns extracted markdown text from all pages.
      */
-    private function extractTextFromScannedPdf(string $pdfPath): string
+    private function extractTextWithMistralOCR(string $absolutePath, string $extension): string
     {
-        $jpegData = null;
+        $raw = file_get_contents($absolutePath);
+        if (!$raw) return '';
 
-        // Method 1: PHP Imagick extension (+ Ghostscript installed on system)
-        if (extension_loaded('imagick')) {
-            try {
-                $im = new \Imagick();
-                $im->setResolution(150, 150);
-                $im->readImage($pdfPath . '[0]'); // first page only
-                $im->setImageFormat('jpeg');
-                $im->setImageCompressionQuality(85);
-                $jpegData = $im->getImageBlob();
-                $im->clear();
-            } catch (\Throwable $e) {
-                Log::warning('Imagick PDF→JPEG failed', ['error' => $e->getMessage()]);
-            }
+        if ($extension === 'pdf') {
+            $document = [
+                'type'         => 'document_url',
+                'document_url' => 'data:application/pdf;base64,' . base64_encode($raw),
+            ];
+        } else {
+            $mimeType = in_array($extension, ['jpg', 'jpeg']) ? 'image/jpeg' : 'image/png';
+            $document = [
+                'type'      => 'image_url',
+                'image_url' => 'data:' . $mimeType . ';base64,' . base64_encode($raw),
+            ];
         }
 
-        // Method 2: Ghostscript via exec() — works on Windows XAMPP if GS is installed
-        if (!$jpegData && function_exists('exec')) {
-            $tmpJpeg = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('pdf_ocr_') . '.jpg';
-
-            // Locate gswin64c.exe (tries common Windows install paths)
-            $gsBin = $this->findGhostscript();
-
-            if ($gsBin) {
-                $cmd = $gsBin
-                    . ' -dNOPAUSE -dBATCH -sDEVICE=jpeg -dFirstPage=1 -dLastPage=1'
-                    . ' -r150 -dJPEGQ=85'
-                    . ' -sOutputFile=' . escapeshellarg($tmpJpeg)
-                    . ' ' . escapeshellarg($pdfPath)
-                    . ' 2>&1';
-
-                exec($cmd, $output, $code);
-
-                if ($code === 0 && file_exists($tmpJpeg) && filesize($tmpJpeg) > 0) {
-                    $jpegData = file_get_contents($tmpJpeg);
-                } else {
-                    Log::warning('Ghostscript PDF→JPEG failed', [
-                        'code'   => $code,
-                        'output' => implode("\n", $output),
-                    ]);
-                }
-
-                if (file_exists($tmpJpeg)) {
-                    unlink($tmpJpeg);
-                }
-            }
-        }
-
-        if (!$jpegData) {
-            return '';
-        }
-
-        return $this->extractTextFromImage(base64_encode($jpegData), 'image/jpeg');
-    }
-
-    /** Find Ghostscript binary on Windows or Unix. */
-    private function findGhostscript(): ?string
-    {
-        // Unix / Linux / Mac
-        if (PHP_OS_FAMILY !== 'Windows') {
-            foreach (['gs', '/usr/bin/gs', '/usr/local/bin/gs'] as $bin) {
-                exec("which {$bin} 2>/dev/null", $out, $code);
-                if ($code === 0 && !empty($out[0])) return $bin;
-            }
-            return null;
-        }
-
-        // Windows — check common GhostScript install directories
-        $programFiles = [
-            getenv('ProgramFiles')       ?: 'C:\\Program Files',
-            getenv('ProgramFiles(x86)')  ?: 'C:\\Program Files (x86)',
-        ];
-
-        foreach ($programFiles as $pf) {
-            $gsDir = $pf . '\\gs';
-            if (!is_dir($gsDir)) continue;
-
-            // Iterate version folders (e.g. gs10.04.0, gs9.56.1)
-            $versions = glob($gsDir . '\\gs*', GLOB_ONLYDIR) ?: [];
-            // Newest first
-            rsort($versions);
-
-            foreach ($versions as $vDir) {
-                $candidate = $vDir . '\\bin\\gswin64c.exe';
-                if (file_exists($candidate)) return '"' . $candidate . '"';
-                $candidate32 = $vDir . '\\bin\\gswin32c.exe';
-                if (file_exists($candidate32)) return '"' . $candidate32 . '"';
-            }
-        }
-
-        return null;
-    }
-
-    private function extractTextFromImage(string $base64, string $mimeType): string
-    {
         $payload = json_encode([
-            'model'    => 'pixtral-12b-2409',
-            'messages' => [[
-                'role'    => 'user',
-                'content' => [
-                    [
-                        'type'      => 'image_url',
-                        'image_url' => ['url' => "data:{$mimeType};base64,{$base64}"],
-                    ],
-                    [
-                        'type' => 'text',
-                        'text' => 'Beskriv og transskribér al tekst du kan se i dette billede. Returner kun teksten fra billedet.',
-                    ],
-                ],
-            ]],
-            'max_tokens' => 1500,
+            'model'    => 'mistral-ocr-latest',
+            'document' => $document,
         ]);
 
         $ctx = stream_context_create([
             'http' => [
                 'method'        => 'POST',
-                'header'        => "Authorization: Bearer " . config('services.mistral.key') . "\r\n"
+                'header'        => 'Authorization: Bearer ' . config('services.mistral.key') . "\r\n"
                                  . "Content-Type: application/json\r\n",
                 'content'       => $payload,
-                'timeout'       => 25,
+                'timeout'       => 60,
                 'ignore_errors' => true,
             ],
             'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
         ]);
 
-        $response = @file_get_contents('https://api.mistral.ai/v1/chat/completions', false, $ctx);
-        if (!$response) return '';
+        $response = @file_get_contents('https://api.mistral.ai/v1/ocr', false, $ctx);
+        if (!$response) {
+            Log::warning('Mistral OCR: no response');
+            return '';
+        }
 
         $data = json_decode($response, true);
-        return $data['choices'][0]['message']['content'] ?? '';
+        if (!isset($data['pages'])) {
+            Log::warning('Mistral OCR: unexpected response', ['body' => substr($response, 0, 500)]);
+            return '';
+        }
+
+        return implode("\n\n", array_map(fn ($p) => $p['markdown'] ?? '', $data['pages']));
     }
 
     public function destroyCase(CaseModel $case): JsonResponse
@@ -2331,9 +2233,16 @@ SECTION;
     /**
      * Increment ai_tokens_used and deduct wallet balance for overage tokens.
      * Rate: hentes fra app_settings (extra_usage_rate_per_token), fallback 0.0004 kr/token.
+     * Multiplier: mistral-large-latest tæller X gange så mange tokens som small (konfigurerbar).
      */
-    private function trackTokensAndDeductWallet(\App\Models\User $user, int $tokensUsed): void
+    private function trackTokensAndDeductWallet(\App\Models\User $user, int $tokensUsed, string $model = 'mistral-small-latest'): void
     {
+        // Anvend model-multiplikator så dyrere modeller løber kvoten hurtigere
+        if ($model === 'mistral-large-latest') {
+            $multiplier = (int) \App\Models\AppSetting::get('large_model_token_multiplier', 5);
+            $tokensUsed = $tokensUsed * max(1, $multiplier);
+        }
+
         $limit        = $user->ai_tokens_limit ?? 100000;
         $previousUsed = $user->ai_tokens_used  ?? 0;
 

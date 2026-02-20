@@ -209,9 +209,6 @@ onUnmounted(() => {
 
         </section>
 
-        <!-- ═══ FEATURES + HOW ROW ═══ -->
-        <div class="lp-sections-row">
-
         <!-- ═══ FEATURES SECTION ═══ -->
         <section class="lp-features-section" id="funktioner">
             <div class="lp-section-inner">
@@ -289,36 +286,6 @@ onUnmounted(() => {
             </div>
         </section>
 
-        <!-- ═══ HOW IT WORKS ═══ -->
-        <section class="lp-how" id="hvordan">
-            <div class="lp-section-inner">
-                <div class="lp-section-label">Sådan virker det</div>
-                <h2 class="lp-section-title">Tre simple skridt<br><span class="lp-gradient-text">til overblik</span></h2>
-
-                <div class="lp-steps">
-                    <div class="lp-step">
-                        <div class="lp-step-num">1</div>
-                        <div class="lp-step-connector"></div>
-                        <h3>Opret din konto</h3>
-                        <p>Gratis på under et minut. Ingen kreditkort, ingen binding.</p>
-                    </div>
-                    <div class="lp-step">
-                        <div class="lp-step-num">2</div>
-                        <div class="lp-step-connector"></div>
-                        <h3>Beskriv din situation</h3>
-                        <p>Fortæl Aura om din situation i dit eget tempo. Aura stiller opklarende spørgsmål.</p>
-                    </div>
-                    <div class="lp-step">
-                        <div class="lp-step-num">3</div>
-                        <h3>Få din personlige plan</h3>
-                        <p>Aura opretter en konkret handlingsplan med opgaver, frister og juridisk vejledning.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        </div><!-- end .lp-sections-row -->
-
         <!-- ═══ CTA BOTTOM ═══ -->
         <section class="lp-cta-section" id="priser">
             <div class="lp-cta-bg" aria-hidden="true">
@@ -336,6 +303,32 @@ onUnmounted(() => {
                         </svg>
                     </Link>
                     <Link :href="route('login')" class="lp-btn-ghost-light">Log ind</Link>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ HOW IT WORKS ═══ -->
+        <section class="lp-how" id="hvordan">
+            <div class="lp-section-inner">
+                <div class="lp-section-label">Sådan virker det</div>
+                <h2 class="lp-section-title">Tre simple skridt<br><span class="lp-gradient-text">til overblik</span></h2>
+
+                <div class="lp-steps">
+                    <div class="lp-step">
+                        <div class="lp-step-num">1</div>
+                        <h3>Opret din konto</h3>
+                        <p>Gratis på under et minut. Ingen kreditkort, ingen binding.</p>
+                    </div>
+                    <div class="lp-step">
+                        <div class="lp-step-num">2</div>
+                        <h3>Beskriv din situation</h3>
+                        <p>Fortæl Aura om din situation i dit eget tempo. Aura stiller opklarende spørgsmål.</p>
+                    </div>
+                    <div class="lp-step">
+                        <div class="lp-step-num">3</div>
+                        <h3>Få din personlige plan</h3>
+                        <p>Aura opretter en konkret handlingsplan med opgaver, frister og juridisk vejledning.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1100,25 +1093,10 @@ onUnmounted(() => {
     border: 1px solid rgba(251,191,36,0.2);
 }
 
-/* ─── SECTIONS ROW ─────────────────────────────────────── */
-.lp-sections-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    padding: 1.5rem;
-    background: #fff;
-}
-
-@media (min-width: 1024px) {
-    .lp-sections-row {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
 /* ─── FEATURES SECTION ─────────────────────────────────── */
 .lp-features-section {
-    padding: 0;
-    background: transparent;
+    padding: 1.5rem 1.5rem 0.75rem;
+    background: #fff;
 }
 
 .lp-features-section > .lp-section-inner {
@@ -1129,7 +1107,6 @@ onUnmounted(() => {
     border-radius: 2rem;
     padding: 3rem 2.5rem;
     box-shadow: 0 4px 24px rgba(126,117,206,0.08);
-    height: 100%;
     box-sizing: border-box;
 }
 
@@ -1353,8 +1330,8 @@ onUnmounted(() => {
 
 /* ─── HOW IT WORKS ─────────────────────────────────────── */
 .lp-how {
-    padding: 0;
-    background: transparent;
+    padding: 0.75rem 1.5rem 1.5rem;
+    background: #fff;
 }
 
 .lp-how > .lp-section-inner {
@@ -1365,7 +1342,6 @@ onUnmounted(() => {
     border-radius: 2rem;
     padding: 3rem 2.5rem;
     box-shadow: 0 4px 24px rgba(217,96,154,0.08);
-    height: 100%;
     box-sizing: border-box;
 }
 

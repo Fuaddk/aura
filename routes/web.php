@@ -13,8 +13,11 @@ use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route('login');
-});
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+    return inertia('Landing');
+})->name('home');
 
 
 Route::middleware(['auth', 'verified'])->group(function () {

@@ -13,6 +13,7 @@ const props = defineProps({
     taskRagSources:     { type: Array, default: () => [] },
     memoryStats:        { type: Array, default: () => [] },
     userMemories:       { type: Array, default: () => [] },
+    systemPromptCore:   { type: String, default: '' },
     viewUser:           { type: Object, default: null },
     userCases:          { type: Array, default: () => [] },
     appSettings:        { type: Object, default: () => ({}) },
@@ -203,6 +204,22 @@ const deleteTaskSource = (url) => {
 const deleteAllMemories = (userId) => {
     if (!confirm('Slet ALLE hukommelser for denne bruger?')) return;
     router.delete(route('admin.users.memories.destroy-all', userId), { preserveScroll: true });
+};
+
+// System prompt
+const spBody    = ref(props.systemPromptCore);
+const savingSp  = ref(false);
+const saveSystemPrompt = () => {
+    savingSp.value = true;
+    router.put(route('systemprompt.update'), { body: spBody.value }, {
+        preserveScroll: true,
+        onFinish: () => { savingSp.value = false; },
+    });
+};
+const resetSystemPrompt = () => {
+    if (!confirm('Nulstil til standard-systemprompt? Dette sletter den gemte version.')) return;
+    spBody.value = '';
+    saveSystemPrompt();
 };
 
 /* ── User conversations ─────────────────────────────────── */
@@ -716,10 +733,10 @@ const nav = [
 
                 <!-- Sub-tab nav -->
                 <div class="adm-sub-nav" style="margin-bottom:1.5rem">
-                    <button v-for="t in ['knowledge','personality','phase','task','memory']" :key="t"
+                    <button v-for="t in ['knowledge','personality','phase','task','memory','systemprompt']" :key="t"
                         :class="['adm-sub-nav-btn', knowledgeSubTab === t ? 'adm-sub-nav-btn-active' : '']"
                         @click="knowledgeSubTab = t">
-                        {{ { knowledge:'Viden', personality:'Personlighed', phase:'Faser', task:'Opgavetyper', memory:'Hukommelse' }[t] }}
+                        {{ { knowledge:'Viden', personality:'Personlighed', phase:'Faser', task:'Opgavetyper', memory:'Hukommelse', systemprompt:'Systemprompt' }[t] }}
                     </button>
                 </div>
 
@@ -890,6 +907,44 @@ const nav = [
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- ── Sub-tab: Systemprompt ── -->
+                <div v-if="knowledgeSubTab === 'systemprompt'">
+                    <p class="adm-hint" style="margin-bottom:1.5rem">
+                        Rediger Auras kernesystemprompt — personlighed, tone og regler. Efterlad feltet tomt for at bruge den indkodede standard.<br>
+                        <strong>Bemærk:</strong> SAG KONTEKST, brugerprofil, hukommelse, faseinstruktioner og RAG-viden tilføjes altid automatisk af systemet.
+                    </p>
+                    <div class="adm-form-card">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+                            <h3 class="adm-form-heading" style="margin:0">
+                                Systemprompt (kerne)
+                                <span v-if="systemPromptCore" class="adm-set-badge" style="margin-left:0.5rem;font-size:0.7rem">Tilpasset</span>
+                                <span v-else style="margin-left:0.5rem;font-size:0.75rem;color:#9ca3af">Standard</span>
+                            </h3>
+                            <button v-if="systemPromptCore" @click="resetSystemPrompt" class="adm-btn-ghost" style="font-size:0.8125rem;padding:0.375rem 0.75rem">
+                                Nulstil til standard
+                            </button>
+                        </div>
+                        <div class="adm-field">
+                            <label class="adm-label">
+                                Prompt-tekst
+                                <span class="adm-char-count">{{ spBody.length.toLocaleString() }} / 32.000 tegn</span>
+                            </label>
+                            <textarea
+                                v-model="spBody"
+                                class="adm-input adm-textarea"
+                                rows="28"
+                                style="font-family:monospace;font-size:0.8125rem;line-height:1.55"
+                                placeholder="Efterlad tomt for at bruge standard-systemprompt..."
+                            ></textarea>
+                        </div>
+                        <div style="display:flex;gap:0.75rem;align-items:center">
+                            <button @click="saveSystemPrompt" :disabled="savingSp" class="adm-send-btn" style="max-width:14rem">
+                                {{ savingSp ? 'Gemmer…' : 'Gem systemprompt' }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>

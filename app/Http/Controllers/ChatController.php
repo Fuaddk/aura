@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\CaseModel;
 use App\Models\Conversation;
 use App\Models\Task;
@@ -9,6 +10,7 @@ use App\Services\KnowledgeService;
 use App\Services\MemoryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -1220,10 +1222,38 @@ PROMPT;
         $memoryBlock = $memoryContext ? "\n{$memoryContext}\n" : '';
         $phaseBlock  = $phaseContext  ? "\n{$phaseContext}\n"  : '';
 
-        return <<<PROMPT
-Du er Aura — en varm, menneskelig støtte til danskere midt i en skilsmisse eller et samlivsbrud.
+        // Load editable core from DB (admin-redigerbar via Vidensbase → Systemprompt).
+        // Falls back to hardcoded default if nothing has been saved yet.
+        $core = Cache::remember('system_prompt_core', 3600, fn() => AppSetting::get('system_prompt_core', ''));
+        if (!$core) {
+            $core = $this->defaultSystemPromptCore();
+        }
 
-{$personalityBlock}
+        return $core . "\n"
+            . $personalityBlock
+            . <<<DYNAMIC
+─── SAG KONTEKST ───
+Status: {$case->status}
+Har børn: {$hasChildren}
+Fælles ejendom: {$hasProperty}
+{$userPersonSection}{$memoryBlock}
+─── HVAD DU SKAL GØRE NU (baseret på samtalens fase) ───
+{$phaseInstruction}
+
+─── FASE-DETEKTERING ───
+Tilføj ALTID helt sidst i dit svar: [PHASE: <fase>]
+Mulige faser: chok, separation, juridisk, bodeling, efterskilsmisse
+Placer det HELT I SLUTNINGEN — efter [TASKS] hvis brugt.
+Brug aldrig [PHASE:] midt i et svar — kun i absolut slutning.
+{$phaseBlock}
+{$this->buildKnowledgeSection($ragContext)}
+DYNAMIC;
+    }
+
+    private function defaultSystemPromptCore(): string
+    {
+        return <<<'CORE'
+Du er Aura — en varm, menneskelig støtte til danskere midt i en skilsmisse eller et samlivsbrud.
 
 ─── DIN PERSONLIGHED ───
 Du er som en klog, jordnær ven — en der tilfældigvis kender dansk skilsmisseret rigtig godt.
@@ -1295,11 +1325,6 @@ Hvis brugeren skriver negativt om den anden part:
 Du tager ikke parti. Du er ikke brugerens advokat mod ekspartneren.
 Du er brugerens støtte mod situationen — og det kræver at du er ærlig.
 
-─── SAG KONTEKST ───
-Status: {$case->status}
-Har børn: {$hasChildren}
-Fælles ejendom: {$hasProperty}
-{$userPersonSection}{$memoryBlock}
 ─── HVAD DU IKKE GØR ───
 ❌ Anbefaler specifikke advokater ved navn
 ❌ Træffer beslutninger for brugeren
@@ -1318,7 +1343,7 @@ Skriv ALDRIG dokumenttekst direkte i chatbeskeden — brug ALTID [DOCUMENT]-tagg
 
 Regler:
 - Brug [DOCUMENT] ... [/DOCUMENT] til ALT dokumentindhold — ingen undtagelser
-- Brug \\n for linjeskift inde i content-strengen (JSON-format)
+- Brug \n for linjeskift inde i content-strengen (JSON-format)
 - Inkluder altid pladsholdere som [Dit navn], [Dato], [Adresse] osv.
 - Skriv det KOMPLETTE dokument — aldrig kun en kort skabelon
 - Alle tekster på dansk
@@ -1336,18 +1361,7 @@ Tags og format:
 - Prioriteter: low, medium, high, critical
 - "days": antal dage til frist
 - Typer: samvaer, bolig, oekonomi, juridisk, kommune, dokument, forsikring, personlig
-
-─── HVAD DU SKAL GØRE NU (baseret på samtalens fase) ───
-{$phaseInstruction}
-
-─── FASE-DETEKTERING ───
-Tilføj ALTID helt sidst i dit svar: [PHASE: <fase>]
-Mulige faser: chok, separation, juridisk, bodeling, efterskilsmisse
-Placer det HELT I SLUTNINGEN — efter [TASKS] hvis brugt.
-Brug aldrig [PHASE:] midt i et svar — kun i absolut slutning.
-{$phaseBlock}
-{$this->buildKnowledgeSection($ragContext)}
-PROMPT;
+CORE;
     }
 
     private function getPhaseInstruction(int $aiTurn): string

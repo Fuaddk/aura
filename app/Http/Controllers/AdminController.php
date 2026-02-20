@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -116,6 +117,7 @@ class AdminController extends Controller
             'phaseSources'       => $phaseSources,
             'taskRagSources'     => $taskRagSources,
             'memoryStats'        => $memoryStats,
+            'systemPromptCore'   => AppSetting::get('system_prompt_core', ''),
         ];
     }
 
@@ -494,6 +496,29 @@ class AdminController extends Controller
             'viewUser'  => $user->only('id', 'name', 'email'),
             'userCases' => $cases,
         ]));
+    }
+
+    /* ── System prompt editor ───────────────────────────────── */
+
+    public function updateSystemPrompt(Request $request): RedirectResponse
+    {
+        $request->validate(['body' => 'nullable|string|max:32000']);
+
+        $body = $request->input('body', '');
+
+        if ($body !== '') {
+            AppSetting::updateOrCreate(
+                ['key' => 'system_prompt_core'],
+                ['value' => $body, 'is_secret' => false]
+            );
+        } else {
+            // Empty = revert to hardcoded default
+            AppSetting::where('key', 'system_prompt_core')->delete();
+        }
+
+        Cache::forget('system_prompt_core');
+
+        return back()->with('success', $body !== '' ? 'Systemprompt gemt.' : 'Systemprompt nulstillet til standard.');
     }
 
     /* ── API-indstillinger ──────────────────────────────────── */

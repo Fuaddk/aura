@@ -56,11 +56,11 @@ const props = defineProps({
 });
 
 const message = ref('');
-// Map conversations to include document/task data from retrieved_chunks
+// Map conversations to include document/task data from metadata (tasks) and retrieved_chunks (document)
 const messages = ref(props.conversations.map(msg => ({
     ...msg,
     document: msg.retrieved_chunks?.document || null,
-    tasks: msg.retrieved_chunks?.tasks || [],
+    tasks: msg.metadata?.tasks || msg.retrieved_chunks?.tasks || [],
 })));
 const isLoading = ref(false);
 const chatContainer = ref(null);

@@ -121,6 +121,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/memories/{memory}', [AdminController::class, 'deleteUserMemory'])->name('memories.destroy');
     Route::delete('/users/{user}/memories', [AdminController::class, 'deleteAllUserMemories'])->name('users.memories.destroy-all');
 
+    // System prompt editor
+    Route::put('/systemprompt', [AdminController::class, 'updateSystemPrompt'])->name('systemprompt.update');
+
     // API-indstillinger
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
     Route::patch('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');

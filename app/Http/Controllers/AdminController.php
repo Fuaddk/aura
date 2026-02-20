@@ -38,8 +38,9 @@ class AdminController extends Controller
             ->pluck('count', 'subscription_plan')
             ->toArray();
 
-        foreach (['free', 'pro', 'business'] as $plan) {
-            $plans[$plan] = $plans[$plan] ?? 0;
+        // Ensure all known plan slugs are present (default 0)
+        foreach (SubscriptionPlan::pluck('slug') as $slug) {
+            $plans[$slug] = $plans[$slug] ?? 0;
         }
 
         $users = User::orderByDesc('created_at')
@@ -125,15 +126,19 @@ class AdminController extends Controller
 
     public function updatePlan(Request $request, User $user): RedirectResponse
     {
-        $request->validate(['plan' => 'required|in:free,pro,business']);
+        $slugs = SubscriptionPlan::pluck('slug')->implode(',');
+        $request->validate(['plan' => 'required|in:' . $slugs]);
 
-        $plan  = \App\Models\SubscriptionPlan::where('slug', $request->plan)->first();
+        $plan  = SubscriptionPlan::where('slug', $request->plan)->first();
         $limit = $plan ? ($plan->tokens_limit === 0 ? 9999999 : $plan->tokens_limit) : 100000;
 
         $user->update([
             'subscription_plan' => $request->plan,
             'ai_tokens_limit'   => $limit,
         ]);
+
+        // Clear cached plan_features so the change takes effect immediately
+        \Illuminate\Support\Facades\Cache::forget("user:{$user->id}:plan_features");
 
         return back()->with('success', "Plan opdateret til {$request->plan}.");
     }

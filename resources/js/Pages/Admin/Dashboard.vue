@@ -318,8 +318,8 @@ const formatDate = (date) => {
     return new Date(date).toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const planLabel = { free: 'Gratis', pro: 'Pro', business: 'Business' };
-const planColor = { free: '#6b7280', pro: '#7c3aed', business: '#0891b2' };
+const planLabel = computed(() => Object.fromEntries((props.subscriptionPlans ?? []).map(p => [p.slug, p.name])));
+const planColor = { free: '#6b7280', pro: '#7c3aed', business: '#0891b2', basis: '#059669' };
 const totalPlans = computed(() => Object.values(props.plans).reduce((a, b) => a + b, 0));
 
 const categories = [
@@ -430,12 +430,12 @@ const nav = [
                 <!-- Fordeling -->
                 <h2 class="adm-section-title">Abonnementsfordeling</h2>
                 <div class="adm-plans-grid">
-                    <div v-for="plan in ['free', 'pro', 'business']" :key="plan" class="adm-plan-card">
-                        <div class="adm-plan-count" :style="{ color: planColor[plan] }">{{ plans[plan] || 0 }}</div>
-                        <div class="adm-plan-name">{{ planLabel[plan] }}</div>
-                        <div class="adm-plan-pct">{{ totalPlans > 0 ? Math.round(((plans[plan] || 0) / totalPlans) * 100) : 0 }}%</div>
+                    <div v-for="p in subscriptionPlans" :key="p.slug" class="adm-plan-card">
+                        <div class="adm-plan-count" :style="{ color: planColor[p.slug] || '#6b7280' }">{{ plans[p.slug] || 0 }}</div>
+                        <div class="adm-plan-name">{{ p.name }}</div>
+                        <div class="adm-plan-pct">{{ totalPlans > 0 ? Math.round(((plans[p.slug] || 0) / totalPlans) * 100) : 0 }}%</div>
                         <div class="adm-plan-bar-wrap">
-                            <div class="adm-plan-bar" :style="{ width: totalPlans > 0 ? ((plans[plan] || 0) / totalPlans * 100) + '%' : '0%', background: planColor[plan] }"></div>
+                            <div class="adm-plan-bar" :style="{ width: totalPlans > 0 ? ((plans[p.slug] || 0) / totalPlans * 100) + '%' : '0%', background: planColor[p.slug] || '#6b7280' }"></div>
                         </div>
                     </div>
                 </div>
@@ -654,9 +654,7 @@ const nav = [
                                 </td>
                                 <td>
                                     <select :value="user.subscription_plan" @change="updatePlan(user, $event.target.value)" :disabled="updatingPlan === user.id || user.is_admin" class="adm-plan-select">
-                                        <option value="free">Gratis</option>
-                                        <option value="pro">Pro</option>
-                                        <option value="business">Business</option>
+                                        <option v-for="p in subscriptionPlans" :key="p.slug" :value="p.slug">{{ p.name }}</option>
                                     </select>
                                 </td>
                                 <td><span class="adm-ai-usage">{{ (user.ai_tokens_used / 1000).toFixed(1) }}K / {{ user.ai_tokens_limit >= 9999999 ? '∞' : (user.ai_tokens_limit / 1000).toFixed(0) + 'K' }}</span></td>

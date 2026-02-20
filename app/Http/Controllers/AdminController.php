@@ -603,6 +603,7 @@ class AdminController extends Controller
     public function updateSubscriptionPlan(Request $request, SubscriptionPlan $plan): RedirectResponse
     {
         $data = $request->validate([
+            'slug'                     => ['required', 'string', 'max:50', 'regex:/^[a-z0-9\-]+$/', \Illuminate\Validation\Rule::unique('subscription_plans', 'slug')->ignore($plan->id)],
             'name'                     => 'required|string|max:100',
             'description'              => 'nullable|string|max:300',
             'price'                    => 'required|integer|min:0',
@@ -620,10 +621,19 @@ class AdminController extends Controller
 
         $data['features'] = $this->parseFeatures($data['features'] ?? '');
 
+        $oldSlug = $plan->slug;
+        $newSlug = $data['slug'];
+
         // Clear plan_features cache for all users on this plan
-        \App\Models\User::where('subscription_plan', $plan->slug)
+        \App\Models\User::where('subscription_plan', $oldSlug)
             ->pluck('id')
             ->each(fn ($id) => \Illuminate\Support\Facades\Cache::forget("user:{$id}:plan_features"));
+
+        // If slug changed, update users' subscription_plan column too
+        if ($oldSlug !== $newSlug) {
+            \App\Models\User::where('subscription_plan', $oldSlug)
+                ->update(['subscription_plan' => $newSlug]);
+        }
 
         $plan->update($data);
 

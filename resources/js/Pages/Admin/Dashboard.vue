@@ -569,6 +569,10 @@ const nav = [
                                     <input v-model="editPlan.name" type="text" class="adm-input" />
                                 </div>
                                 <div class="adm-sp-field">
+                                    <label>Slug <span class="adm-sp-hint">(kun små bogstaver og bindestreg)</span></label>
+                                    <input v-model="editPlan.slug" type="text" class="adm-input adm-input-mono" placeholder="f.eks. pro" />
+                                </div>
+                                <div class="adm-sp-field">
                                     <label>Pris (kr/md)</label>
                                     <input v-model.number="editPlan.price" type="number" min="0" class="adm-input" />
                                 </div>

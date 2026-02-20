@@ -6,6 +6,5 @@
 @section('description', 'Du har ikke tilladelse til at se denne side. Kontakt os hvis du mener dette er en fejl.')
 
 @section('actions')
-    <a href="{{ url('/dashboard') }}" class="btn-primary">Gå til forsiden</a>
-    <a href="javascript:history.back()" class="btn-ghost">Gå tilbage</a>
+    <a href="javascript:history.back()" class="btn-primary">Gå tilbage</a>
 @endsection

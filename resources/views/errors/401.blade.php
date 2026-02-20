@@ -7,5 +7,5 @@
 
 @section('actions')
     <a href="{{ route('login') }}" class="btn-primary">Log ind</a>
-    <a href="{{ url('/') }}" class="btn-ghost">Forside</a>
+    <a href="javascript:history.back()" class="btn-ghost">Gå tilbage</a>
 @endsection

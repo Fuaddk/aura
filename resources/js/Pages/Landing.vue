@@ -1116,21 +1116,25 @@ onUnmounted(() => {
 }
 
 .lp-section-label {
+    display: inline-block;
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #a78bfa;
-    margin-bottom: 0.75rem;
+    letter-spacing: 0.12em;
+    background: linear-gradient(90deg, #5BC4E8, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.875rem;
 }
 
 .lp-section-title {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-size: clamp(1.75rem, 4vw, 2.625rem);
     font-weight: 800;
     color: #fff;
     letter-spacing: -0.03em;
-    line-height: 1.2;
-    margin: 0 0 3rem;
+    line-height: 1.18;
+    margin: 0 0 2.75rem;
 }
 
 /* ─── FEATURES SECTION ─────────────────────────────────── */
@@ -1142,14 +1146,18 @@ onUnmounted(() => {
 
 .lp-features-section > .lp-section-inner {
     background:
-        linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)) padding-box,
-        linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A) border-box;
-    border: 1.5px solid transparent;
-    border-radius: 2rem;
-    padding: 3rem 2.5rem;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+        linear-gradient(160deg, rgba(255,255,255,0.095) 0%, rgba(255,255,255,0.045) 100%) padding-box,
+        linear-gradient(135deg, rgba(91,196,232,0.8), rgba(126,117,206,0.9), rgba(217,96,154,0.8)) border-box;
+    border: 1px solid transparent;
+    border-radius: 2.5rem;
+    padding: 3.5rem 3rem;
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    box-shadow:
+        0 32px 80px rgba(0,0,0,0.45),
+        0 8px 24px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -1px 0 rgba(0,0,0,0.12);
     box-sizing: border-box;
 }
 
@@ -1179,9 +1187,9 @@ onUnmounted(() => {
     align-items: flex-start;
     gap: 1rem;
     padding: 1rem 1.125rem;
-    background: transparent;
-    border: 1.5px solid rgba(255,255,255,0.07);
-    border-radius: 1.125rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1.25rem;
     cursor: pointer;
     text-align: left;
     transition: all 0.2s ease;
@@ -1190,14 +1198,15 @@ onUnmounted(() => {
 }
 
 .lp-feat-item:hover {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 
 .lp-feat-item-active {
-    background: rgba(255,255,255,0.1);
-    border-color: rgba(255,255,255,0.18);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+    border-color: rgba(255,255,255,0.2);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 .lp-feat-dot {
@@ -1265,17 +1274,18 @@ onUnmounted(() => {
 .lp-feat-panel {
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 1.5rem;
-    padding: 2rem;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    background: linear-gradient(160deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 1.75rem;
+    padding: 2.25rem;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
     opacity: 0;
     transform: scale(0.97) translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
     pointer-events: none;
     overflow: hidden;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 .lp-feat-panel-active {
@@ -1343,14 +1353,18 @@ onUnmounted(() => {
 
 .lp-pricing > .lp-section-inner {
     background:
-        linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)) padding-box,
-        linear-gradient(135deg, #7E75CE, #5BC4E8, #D9609A) border-box;
-    border: 1.5px solid transparent;
-    border-radius: 2rem;
-    padding: 3rem 2.5rem;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+        linear-gradient(160deg, rgba(255,255,255,0.085) 0%, rgba(255,255,255,0.04) 100%) padding-box,
+        linear-gradient(135deg, rgba(126,117,206,0.9), rgba(91,196,232,0.8), rgba(217,96,154,0.8)) border-box;
+    border: 1px solid transparent;
+    border-radius: 2.5rem;
+    padding: 3.5rem 3rem;
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    box-shadow:
+        0 32px 80px rgba(0,0,0,0.45),
+        0 8px 24px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -1px 0 rgba(0,0,0,0.12);
     box-sizing: border-box;
 }
 
@@ -1369,28 +1383,43 @@ onUnmounted(() => {
 
 .lp-plan {
     position: relative;
-    background: rgba(255,255,255,0.06);
-    border: 1.5px solid rgba(255,255,255,0.1);
-    border-radius: 1.75rem;
-    padding: 2rem;
+    background: linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 2rem;
+    padding: 2.25rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .lp-plan:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 48px rgba(0,0,0,0.3);
-    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-6px);
+    box-shadow: 0 28px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.22);
 }
 
 .lp-plan-popular {
     background:
-        linear-gradient(rgba(126,117,206,0.18), rgba(126,117,206,0.18)) padding-box,
+        linear-gradient(160deg, rgba(126,117,206,0.28) 0%, rgba(126,117,206,0.12) 100%) padding-box,
         linear-gradient(135deg, #5BC4E8, #7E75CE, #D9609A) border-box;
-    border: 2px solid transparent;
-    box-shadow: 0 8px 32px rgba(126,117,206,0.25);
+    border: 1.5px solid transparent;
+    box-shadow:
+        0 16px 56px rgba(126,117,206,0.4),
+        0 4px 16px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.18);
+    transform: translateY(-4px);
+}
+
+.lp-plan-popular:hover {
+    transform: translateY(-10px);
+    box-shadow:
+        0 32px 80px rgba(126,117,206,0.55),
+        0 8px 24px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
 .lp-plan-popular-badge {
@@ -1549,14 +1578,18 @@ onUnmounted(() => {
 
 .lp-how > .lp-section-inner {
     background:
-        linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)) padding-box,
-        linear-gradient(135deg, #D9609A, #7E75CE, #5BC4E8) border-box;
-    border: 1.5px solid transparent;
-    border-radius: 2rem;
-    padding: 3rem 2.5rem;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+        linear-gradient(160deg, rgba(255,255,255,0.095) 0%, rgba(255,255,255,0.045) 100%) padding-box,
+        linear-gradient(135deg, rgba(217,96,154,0.8), rgba(126,117,206,0.9), rgba(91,196,232,0.8)) border-box;
+    border: 1px solid transparent;
+    border-radius: 2.5rem;
+    padding: 3.5rem 3rem;
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    box-shadow:
+        0 32px 80px rgba(0,0,0,0.45),
+        0 8px 24px rgba(0,0,0,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -1px 0 rgba(0,0,0,0.12);
     box-sizing: border-box;
 }
 
@@ -1575,17 +1608,20 @@ onUnmounted(() => {
 
 .lp-step {
     position: relative;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 1.5rem;
-    padding: 2rem;
-    transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+    background: linear-gradient(160deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 2rem;
+    padding: 2.25rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+    transition: box-shadow 0.25s, transform 0.25s, border-color 0.25s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .lp-step:hover {
-    box-shadow: 0 12px 36px rgba(0,0,0,0.25);
-    border-color: rgba(255,255,255,0.2);
-    transform: translateY(-4px);
+    box-shadow: 0 24px 56px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.22);
+    transform: translateY(-6px);
 }
 
 .lp-step-num {

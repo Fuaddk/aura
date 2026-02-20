@@ -1106,7 +1106,7 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
     gap: 1.5rem;
     padding: 1.5rem;
-    background: #f0f2f5;
+    background: #fff;
 }
 
 @media (min-width: 1024px) {
@@ -1431,7 +1431,7 @@ onUnmounted(() => {
 .lp-cta-section {
     position: relative;
     padding: 1.5rem;
-    background: #f0f2f5;
+    background: #fff;
     overflow: hidden;
     text-align: center;
 }

@@ -118,6 +118,13 @@ class ChatController extends Controller
             'message' => 'required|string|max:2000',
         ]);
 
+        // Resolve model (free plan always gets small)
+        $allowedModels  = ['mistral-small-latest', 'mistral-large-latest'];
+        $requestedModel = $request->input('model', 'mistral-small-latest');
+        $chatModel = ($user->subscription_plan === 'free' || !in_array($requestedModel, $allowedModels))
+            ? 'mistral-small-latest'
+            : $requestedModel;
+
         // Save user message with task reference
         Conversation::create([
             'case_id' => $task->case_id,
@@ -155,14 +162,14 @@ class ChatController extends Controller
         $taskRef  = $task; // keep reference for task creation
 
         return response()->stream(function () use (
-            $mistralMessages, $taskRef, $caseId, $taskId, $user
+            $mistralMessages, $taskRef, $caseId, $taskId, $user, $chatModel
         ) {
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
 
             $payload = json_encode([
-                'model'      => 'mistral-small-latest',
+                'model'      => $chatModel,
                 'messages'   => $mistralMessages,
                 'max_tokens' => 2000,
                 'stream'     => true,
@@ -311,7 +318,7 @@ class ChatController extends Controller
                 'user_id'    => $user->id,
                 'role'       => 'assistant',
                 'content'    => $displayMessage,
-                'model_used' => 'mistral-small-latest',
+                'model_used' => $chatModel,
                 'metadata'   => $metadata,
                 'retrieved_chunks' => !empty($metadata['tasks']) || !empty($metadata['document'])
                     ? array_filter(['tasks' => $metadata['tasks'] ?? null, 'document' => $metadata['document'] ?? null])
@@ -320,10 +327,11 @@ class ChatController extends Controller
 
             // Send done event
             echo 'data: ' . json_encode([
-                'type'     => 'done',
-                'message'  => $displayMessage,
-                'document' => $document,
-                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                'type'      => 'done',
+                'message'   => $displayMessage,
+                'document'  => $document,
+                'model_used' => $chatModel,
+                'tasks'     => collect($createdTasks)->map(fn ($t) => [
                     'id' => $t->id, 'title' => $t->title, 'description' => $t->description,
                     'priority' => $t->priority, 'due_date' => $t->due_date?->format('Y-m-d'),
                 ]),
@@ -356,6 +364,13 @@ class ChatController extends Controller
         }
 
         if ($err = $this->checkTokenLimit($user)) return $err;
+
+        // Resolve model (free plan always gets small)
+        $allowedModels  = ['mistral-small-latest', 'mistral-large-latest'];
+        $requestedModel = $request->input('model', 'mistral-small-latest');
+        $chatModel = ($user->subscription_plan === 'free' || !in_array($requestedModel, $allowedModels))
+            ? 'mistral-small-latest'
+            : $requestedModel;
 
         $originalFilename = preg_replace('/[^\w\s\-\.]/', '_', $file->getClientOriginalName());
         $mimeType         = $file->getMimeType();
@@ -468,14 +483,14 @@ SECTION;
         $caseId = $task->case_id;
 
         return response()->stream(function () use (
-            $mistralMessages, $task, $user, $taskId, $caseId
+            $mistralMessages, $task, $user, $taskId, $caseId, $chatModel
         ) {
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
 
             $payload = json_encode([
-                'model'      => 'mistral-small-latest',
+                'model'      => $chatModel,
                 'messages'   => $mistralMessages,
                 'max_tokens' => 2000,
                 'stream'     => true,
@@ -620,7 +635,7 @@ SECTION;
                 'user_id'    => $user->id,
                 'role'       => 'assistant',
                 'content'    => $displayMessage,
-                'model_used' => 'mistral-small-latest',
+                'model_used' => $chatModel,
                 'metadata'   => $metadata,
                 'retrieved_chunks' => !empty($metadata['tasks']) || !empty($metadata['document'])
                     ? array_filter(['tasks' => $metadata['tasks'] ?? null, 'document' => $metadata['document'] ?? null])
@@ -634,10 +649,11 @@ SECTION;
 
             // Send done event
             echo 'data: ' . json_encode([
-                'type'     => 'done',
-                'message'  => $displayMessage,
-                'document' => $document,
-                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                'type'      => 'done',
+                'message'   => $displayMessage,
+                'document'  => $document,
+                'model_used' => $chatModel,
+                'tasks'     => collect($createdTasks)->map(fn ($t) => [
                     'id' => $t->id, 'title' => $t->title, 'description' => $t->description,
                     'priority' => $t->priority, 'due_date' => $t->due_date?->format('Y-m-d'),
                 ]),
@@ -905,10 +921,11 @@ PROMPT;
 
             // Send final done event with tasks + document
             echo 'data: ' . json_encode([
-                'type'     => 'done',
-                'message'  => $displayMessage,
-                'case_id'  => $case->id,
-                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                'type'      => 'done',
+                'message'   => $displayMessage,
+                'case_id'   => $case->id,
+                'model_used' => $chatModel,
+                'tasks'     => collect($createdTasks)->map(fn ($t) => [
                     'id'          => $t->id,
                     'title'       => $t->title,
                     'description' => $t->description,
@@ -2004,10 +2021,11 @@ SECTION;
             );
 
             echo 'data: ' . json_encode([
-                'type'     => 'done',
-                'message'  => $displayMessage,
-                'case_id'  => $caseId,
-                'tasks'    => collect($createdTasks)->map(fn ($t) => [
+                'type'      => 'done',
+                'message'   => $displayMessage,
+                'case_id'   => $caseId,
+                'model_used' => $chatModel,
+                'tasks'     => collect($createdTasks)->map(fn ($t) => [
                     'id'          => $t->id,
                     'title'       => $t->title,
                     'description' => $t->description,
